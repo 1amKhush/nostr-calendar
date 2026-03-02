@@ -563,23 +563,6 @@ export const publishPublicCalendarEvent = async (
   return publishToRelays(fullEvent, onAcceptedRelays);
 };
 
-export const fetchUserInfo = (
-  userPublicKeys: string[],
-  onEvent: (event: Event) => void,
-) => {
-  const relayList = getRelays();
-  const filter: Filter = {
-    kinds: [EventKinds.UserProfile],
-    authors: userPublicKeys,
-  };
-
-  return pool.subscribeMany(relayList, [filter], {
-    onevent: (event: Event) => {
-      onEvent(event);
-    },
-  });
-};
-
 export const encodeNAddr = (address: Omit<AddressPointer, "relays">) => {
   return naddrEncode({ ...address, relays: defaultRelays });
 };
