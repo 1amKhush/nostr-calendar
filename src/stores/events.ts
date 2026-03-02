@@ -19,14 +19,16 @@ import { nostrEventToCalendar } from "../utils/parser";
 import { RSVPResponse } from "../utils/types";
 import type { ICalendarEvent } from "../utils/types";
 import { scheduleEventNotifications } from "../utils/notifications";
-import { getItem, setItem } from "../common/localStorage";
+import {
+  getSecureItem,
+  setSecureItem,
+  removeSecureItem,
+} from "../common/localStorage";
 
 export const EVENTS_STORAGE_KEY = "cal:events";
 
-const cachedEvents: ICalendarEvent[] = getItem(EVENTS_STORAGE_KEY, []);
-
 const saveEventsToStorage = (events: ICalendarEvent[]) => {
-  setItem(EVENTS_STORAGE_KEY, events);
+  setSecureItem(EVENTS_STORAGE_KEY, events);
 };
 
 let subscriptionCloser: SubCloser | undefined;
@@ -127,6 +129,9 @@ const processGiftWraps = (
 export const useTimeBasedEvents = create<{
   events: ICalendarEvent[];
   eventById: Record<string, ICalendarEvent>;
+  isCacheLoaded: boolean;
+  loadCachedEvents: () => Promise<void>;
+  clearCachedEvents: () => Promise<void>;
   fetchEvents: (customTimeRange?: {
     daysBefore?: number;
     daysAfter?: number;
@@ -150,11 +155,29 @@ export const useTimeBasedEvents = create<{
       };
     });
   },
-  events: cachedEvents,
+  events: [],
   eventIds: [],
-  eventById: Object.fromEntries(
-    cachedEvents.map((e: ICalendarEvent) => [e.id, e]),
-  ),
+  eventById: {},
+  isCacheLoaded: false,
+  loadCachedEvents: async () => {
+    const cached = await getSecureItem<ICalendarEvent[]>(
+      EVENTS_STORAGE_KEY,
+      [],
+    );
+    if (cached.length > 0) {
+      set({
+        events: cached,
+        eventById: Object.fromEntries(cached.map((e) => [e.id, e])),
+        isCacheLoaded: true,
+      });
+    } else {
+      set({ isCacheLoaded: true });
+    }
+  },
+  clearCachedEvents: async () => {
+    await removeSecureItem(EVENTS_STORAGE_KEY);
+    set({ events: [], eventById: {} });
+  },
   getTimeRangeConfig,
   updateTimeRangeConfig: (newConfig) => {
     Object.assign(getTimeRangeConfig(), newConfig);

@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { setItem } from "../common/localStorage";
 import { signerManager } from "../common/signer";
-import { useTimeBasedEvents, EVENTS_STORAGE_KEY } from "./events";
+import { useTimeBasedEvents } from "./events";
 import { cancelAllNotifications } from "../utils/notifications";
 import { fetchRelayList } from "../common/nostr";
 import { useRelayStore } from "./relays";
@@ -40,13 +40,13 @@ export const useUser = create<{
     set({ user });
     setItem(USER_STORAGE_KEY, user);
   },
-  logout: () => {
+  logout: async () => {
     signerManager.logout();
     cancelAllNotifications();
     useRelayStore.getState().resetRelays();
+    await useTimeBasedEvents.getState().clearCachedEvents();
     set({ user: null });
     localStorage.removeItem(USER_STORAGE_KEY);
-    localStorage.removeItem(EVENTS_STORAGE_KEY);
   },
 
   initializeUser: async () => {
