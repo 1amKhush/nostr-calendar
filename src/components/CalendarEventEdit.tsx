@@ -20,6 +20,10 @@ import {
 } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
 import { ICalendarEvent, RepeatingFrequency } from "../utils/types";
+import {
+  frequencyToRRule,
+  rruleToFrequency,
+} from "../utils/repeatingEventsHelper";
 import { ParticipantAdd } from "./ParticipantAdd";
 import ScheduleIcon from "@mui/icons-material/Schedule";
 import { Participant } from "./Participant";
@@ -36,6 +40,9 @@ import DescriptionIcon from "@mui/icons-material/Description";
 import { EventAttributeEditContainer } from "./StyledComponents";
 import LockIcon from "@mui/icons-material/Lock";
 import PublicIcon from "@mui/icons-material/Public";
+import SettingsInputAntennaIcon from "@mui/icons-material/SettingsInputAntenna";
+import { getRelays } from "../common/nostr";
+import { useRelayStore } from "../stores/relays";
 
 interface CalendarEventEditProps {
   open: boolean;
@@ -86,7 +93,7 @@ export function CalendarEventEdit({
       user: "",
       isPrivateEvent: true,
       repeat: {
-        frequency: null,
+        rrule: null,
       },
     } as ICalendarEvent;
   });
@@ -140,12 +147,9 @@ export function CalendarEventEdit({
   };
 
   const handleFrequencyChange = (e: SelectChangeEvent<string>) => {
-    const value = e.target.value;
+    const value = e.target.value as RepeatingFrequency;
     updateField("repeat", {
-      frequency:
-        value !== RepeatingFrequency.None
-          ? (value as RepeatingFrequency)
-          : null,
+      rrule: value !== RepeatingFrequency.None ? frequencyToRRule(value) : null,
     });
   };
 
@@ -258,7 +262,11 @@ export function CalendarEventEdit({
             <FormControl fullWidth size="small">
               <InputLabel>Select recurrence pattern</InputLabel>
               <Select
-                value={eventDetails.repeat.frequency || RepeatingFrequency.None}
+                value={
+                  (eventDetails.repeat.rrule
+                    ? rruleToFrequency(eventDetails.repeat.rrule)
+                    : null) || RepeatingFrequency.None
+                }
                 label="Select recurrence pattern"
                 onChange={handleFrequencyChange}
               >
@@ -373,6 +381,23 @@ export function CalendarEventEdit({
       </DialogContent>
 
       <DialogActions style={{ padding: 16 }}>
+        <Box
+          style={{
+            flex: 1,
+            display: "flex",
+            alignItems: "center",
+          }}
+        >
+          <IconButton
+            size="small"
+            onClick={() => useRelayStore.getState().updateRelayModal(true)}
+          >
+            <SettingsInputAntennaIcon fontSize="small" />
+          </IconButton>
+          <Typography variant="caption" color="textSecondary">
+            Publishing to {getRelays().length} relay(s)
+          </Typography>
+        </Box>
         <Button onClick={handleClose} color="inherit">
           Cancel
         </Button>

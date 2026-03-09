@@ -15,6 +15,7 @@ import {
 } from "./utils";
 import { createLocalSigner } from "./LocalSigner";
 import { NostrSigner } from "./types";
+import { DeferredSigner } from "./DeferredSigner";
 import { createNIP55Signer } from "./NIP55Signer";
 import { fetchUserProfile } from "../nostr";
 import { ANONYMOUS_USER_NAME, DEFAULT_IMAGE_URL } from "../../utils/constants";
@@ -38,7 +39,8 @@ class Signer {
   private loginModalCallback: (() => Promise<void>) | null = null;
 
   constructor() {
-    this.restoreFromStorage();
+    // restoreFromStorage() is called by initializeUser() in the user store
+    // after the onUserChange callback is registered
   }
 
   registerLoginModal(callback: () => Promise<void>) {
@@ -49,40 +51,66 @@ class Signer {
     const cachedUser = getUserDataFromLocalStorage();
     if (cachedUser) this.user = cachedUser.user;
     const keys = getKeysFromLocalStorage();
+
+    // Phase 1: If we have a cached pubkey, set up a deferred signer
+    // and notify immediately so the app can start fetching events
+    let deferredSigner: DeferredSigner | null = null;
+    if (keys?.pubkey) {
+      deferredSigner = new DeferredSigner(keys.pubkey);
+      this.signer = deferredSigner;
+      this.notify();
+    }
+
+    // Phase 2: Restore the real signer in the background
     const bunkerUri = getBunkerUriInLocalStorage();
     const nip55Creds = await getNip55Credentials();
     try {
+      let restored = false;
       if (isNative) {
         const nsec = await getNsec();
         if (nsec) {
           await this.loginWithNsec(nsec);
-          return;
+          restored = true;
         }
       }
-      if (nip55Creds) {
-        // Use cached pubkey to avoid prompting Amber again
+      if (!restored && nip55Creds) {
         console.log(
           "Restoring NIP-55 session with cached pubkey:",
           nip55Creds.pubkey,
         );
         await this.loginWithNip55(nip55Creds.packageName, nip55Creds.pubkey);
-        return;
-      } else if (bunkerUri?.bunkerUri) {
+      } else if (!restored && bunkerUri?.bunkerUri) {
         await this.loginWithNip46(bunkerUri.bunkerUri);
-      } else if (window.nostr && Object.keys(keys).length != 0) {
+      } else if (!restored && window.nostr && Object.keys(keys).length != 0) {
         console.log("Restoring loginWithNip07");
         await this.loginWithNip07();
-      } else if (keys?.pubkey && keys?.secret) {
+      } else if (!restored && keys?.pubkey && keys?.secret) {
         console.log("Restoring guest");
         await this.loginWithGuestKey(keys.pubkey, keys.secret);
       }
     } catch (e) {
       console.error("Signer restore failed:", e);
     }
+
+    // Resolve the deferred signer now that the real one is ready
+    if (deferredSigner && this.signer !== deferredSigner && this.signer) {
+      deferredSigner.resolve(this.signer);
+    }
+
     this.notify();
   }
   private async loginWithGuestKey(pubkey: string, privkey: string) {
     this.signer = createLocalSigner(privkey);
+
+    // Restore user data from localStorage cache if not already set
+    if (!this.user) {
+      const cached = getUserDataFromLocalStorage();
+      this.user = cached?.user ?? {
+        pubkey,
+        name: ANONYMOUS_USER_NAME,
+        picture: DEFAULT_IMAGE_URL,
+      };
+    }
   }
 
   async loginWithNsec(nsec: string) {
@@ -95,14 +123,8 @@ class Signer {
 
     const pubkey = await this.signer.getPublicKey();
 
-    const kind0 = await fetchUserProfile(pubkey);
-    const userData = kind0
-      ? { ...JSON.parse(kind0.content), pubkey }
-      : { pubkey, name: ANONYMOUS_USER_NAME, picture: DEFAULT_IMAGE_URL };
-    this.user = userData;
-
+    await this.saveUser(pubkey);
     await saveNsec(nsec);
-    setUserDataInLocalStorage(userData);
 
     this.notify();
   }
@@ -115,8 +137,17 @@ class Signer {
 
     const pubkey = await this.signer.getPublicKey();
 
+    const userData: IUser = {
+      pubkey,
+      name: userMetadata.name || ANONYMOUS_USER_NAME,
+      picture: userMetadata.picture || DEFAULT_IMAGE_URL,
+      about: userMetadata.about,
+    };
+    this.user = userData;
+
     // Save keys and user data
     setKeysInLocalStorage(pubkey, privkey);
+    setUserDataInLocalStorage(userData);
     this.notify();
   }
 
@@ -126,6 +157,7 @@ class Signer {
       ? { ...JSON.parse(kind0.content), pubkey }
       : { pubkey, name: ANONYMOUS_USER_NAME, picture: DEFAULT_IMAGE_URL };
     this.user = userData;
+    setUserDataInLocalStorage(userData);
     return userData;
   }
 
@@ -159,19 +191,19 @@ class Signer {
     const pubkey = await signer.getPublicKey();
 
     // Step 2: fetch kind0 profile
-    const userData = await this.saveUser(pubkey);
+    await this.saveUser(pubkey);
 
     // Step 3: save signer and user
     this.signer = signer;
 
     await saveNip55Credentials(packageName, pubkey);
-
-    setUserDataInLocalStorage(userData);
     this.notify();
   }
 
   async logout() {
     this.signer = null;
+    this.user = null;
+    this.loginModalCallback = null;
     removeNsec();
     removeKeysFromLocalStorage();
     removeBunkerUriFromLocalStorage();
@@ -192,6 +224,15 @@ class Signer {
     }
 
     throw new Error("NO_SIGNER_AVAILABLE_AND_NO_LOGIN_REQUEST_REGISTERED");
+  }
+
+  async getSignerRelays(): Promise<string[]> {
+    if (!this.signer?.getRelays) return [];
+    try {
+      return await this.signer.getRelays();
+    } catch {
+      return [];
+    }
   }
 
   getUser() {

@@ -3,6 +3,8 @@ import { setItem } from "../common/localStorage";
 import { signerManager } from "../common/signer";
 import { useTimeBasedEvents } from "./events";
 import { cancelAllNotifications } from "../utils/notifications";
+import { fetchRelayList } from "../common/nostr";
+import { useRelayStore } from "./relays";
 
 export interface IUser {
   name?: string;
@@ -38,9 +40,11 @@ export const useUser = create<{
     set({ user });
     setItem(USER_STORAGE_KEY, user);
   },
-  logout: () => {
+  logout: async () => {
     signerManager.logout();
     cancelAllNotifications();
+    useRelayStore.getState().resetRelays();
+    await useTimeBasedEvents.getState().clearCachedEvents();
     set({ user: null });
     localStorage.removeItem(USER_STORAGE_KEY);
   },
@@ -48,39 +52,39 @@ export const useUser = create<{
   initializeUser: async () => {
     if (!isInitializing) {
       isInitializing = true;
-      setTimeout(() => {
-        signerManager.onChange(onUserChange);
-        signerManager.restoreFromStorage();
-      }, 500);
+      signerManager.onChange(onUserChange);
+      signerManager.restoreFromStorage();
     }
   },
 }));
 
 const onUserChange = async () => {
-  let hasUserChanged = false;
   const currentUser = useUser.getState().user;
-  try {
-    const signer = await signerManager.getSigner();
-    const user = await signer.getPublicKey();
+  const cachedUser = signerManager.getUser();
+
+  if (cachedUser) {
     useUser.setState({
       isInitialized: true,
-      user: {
-        pubkey: user,
-      },
+      user: cachedUser,
     });
-    hasUserChanged = currentUser?.pubkey !== user;
-  } catch (e) {
-    if (e.message === "NO_SIGNER_AVAILABLE_AND_NO_LOGIN_REQUEST_REGISTERED") {
-      useUser.setState({
-        isInitialized: true,
-        user: null,
+    if (currentUser?.pubkey !== cachedUser.pubkey) {
+      const eventManager = useTimeBasedEvents.getState();
+      eventManager.resetPrivateEvents();
+      // Fetch user's relay list (NIP-65)
+      fetchRelayList(cachedUser.pubkey).then((relays) => {
+        if (relays.length > 0) {
+          useRelayStore.getState().setRelays(relays);
+        }
       });
-      hasUserChanged = currentUser?.pubkey !== null;
     }
-    throw e;
-  }
-  if (hasUserChanged) {
-    const eventManager = useTimeBasedEvents.getState();
-    eventManager.resetPrivateEvents();
+  } else {
+    useUser.setState({
+      isInitialized: true,
+      user: null,
+    });
+    if (currentUser?.pubkey !== undefined) {
+      const eventManager = useTimeBasedEvents.getState();
+      eventManager.resetPrivateEvents();
+    }
   }
 };

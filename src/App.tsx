@@ -15,12 +15,15 @@ import { IntlProvider } from "react-intl";
 import { flattenMessages } from "./common/utils";
 import dictionary from "./common/dictionary";
 import LoginModal from "./components/LoginModal";
+import RelayManager from "./components/RelayManager";
 import { BrowserRouter, useNavigate } from "react-router";
 import { Routing } from "./components/Routing";
 import { Header } from "./components/Header";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import { addNotificationClickListener } from "./utils/notifications";
+import { useTimeBasedEvents } from "./stores/events";
+import { useRelayStore } from "./stores/relays";
 
 let _locale =
   (navigator.languages && navigator.languages[0]) ||
@@ -42,6 +45,8 @@ function Application() {
 
   useEffect(() => {
     initializeUser();
+    useTimeBasedEvents.getState().loadCachedEvents();
+    useRelayStore.getState().loadCachedRelays();
   }, []);
 
   useEffect(() => {
@@ -97,6 +102,7 @@ function Application() {
         open={showLoginModal}
         onClose={() => updateLoginModal(false)}
       />
+      <RelayManager />
       <Toolbar />
       <Box>
         <Routing />

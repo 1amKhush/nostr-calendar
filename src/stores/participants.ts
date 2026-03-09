@@ -1,6 +1,5 @@
 import { create } from "zustand";
-import { fetchUserInfo } from "../common/nostr";
-import { SubCloser } from "nostr-tools/abstract-pool";
+import { fetchUserProfile } from "../common/nostr";
 
 export interface IParticipant {
   publicKey: string;
@@ -16,46 +15,46 @@ export const useParticipants = create<{
 }>((set) => ({
   participants: {},
   fetchParticipant: async (participantPubKey) => {
-    let newParticipant: IParticipant = {
-      publicKey: participantPubKey,
-      fetching: true,
-    };
-    set(({ participants }) => {
-      return {
+    set(({ participants }) => ({
+      participants: {
+        ...participants,
+        [participantPubKey]: {
+          publicKey: participantPubKey,
+          fetching: true,
+        },
+      },
+    }));
+
+    const event = await fetchUserProfile(participantPubKey);
+
+    if (event) {
+      const { name, picture } = JSON.parse(event.content) as {
+        name: string;
+        picture: string;
+      };
+      set(({ participants }) => ({
         participants: {
           ...participants,
-          [participantPubKey]: newParticipant,
+          [participantPubKey]: {
+            name,
+            picture,
+            publicKey: event.pubkey,
+            createdAt: event.created_at,
+            fetching: false,
+          },
         },
-      };
-    });
-    let closer: SubCloser | null = null;
-    return new Promise<void>((resolve) => {
-      closer = fetchUserInfo([participantPubKey], (event) => {
-        const parsedContent = JSON.parse(event.content) as {
-          name: string;
-          picture: string;
-        };
-
-        newParticipant = {
-          name: parsedContent.name,
-          publicKey: event.pubkey,
-          picture: parsedContent.picture,
-          createdAt: event.created_at,
-          fetching: false,
-        };
-        set(({ participants }) => {
-          return {
-            participants: {
-              ...participants,
-              [participantPubKey]: newParticipant,
-            },
-          };
-        });
-      });
-
-      closer?.close();
-      resolve();
-    });
+      }));
+    } else {
+      set(({ participants }) => ({
+        participants: {
+          ...participants,
+          [participantPubKey]: {
+            publicKey: participantPubKey,
+            fetching: false,
+          },
+        },
+      }));
+    }
   },
 }));
 

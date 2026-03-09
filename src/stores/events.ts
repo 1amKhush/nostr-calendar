@@ -19,6 +19,17 @@ import { nostrEventToCalendar } from "../utils/parser";
 import { RSVPResponse } from "../utils/types";
 import type { ICalendarEvent } from "../utils/types";
 import { scheduleEventNotifications } from "../utils/notifications";
+import {
+  getSecureItem,
+  setSecureItem,
+  removeSecureItem,
+} from "../common/localStorage";
+
+export const EVENTS_STORAGE_KEY = "cal:events";
+
+const saveEventsToStorage = (events: ICalendarEvent[]) => {
+  setSecureItem(EVENTS_STORAGE_KEY, events);
+};
 
 let subscriptionCloser: SubCloser | undefined;
 let privateSubloser: SubCloser | undefined;
@@ -89,10 +100,13 @@ const processPrivateEvent = (
       store = appendOne(store, parsedEvent.id, parsedEvent);
     }
   }
+  console.log(parsedEvent);
   scheduleEventNotifications(parsedEvent);
+  const updatedEvents = denormalize(store);
+  saveEventsToStorage(updatedEvents);
   useTimeBasedEvents.setState({
     eventById: store.byKey,
-    events: denormalize(store),
+    events: updatedEvents,
   });
 };
 
@@ -115,6 +129,9 @@ const processGiftWraps = (
 export const useTimeBasedEvents = create<{
   events: ICalendarEvent[];
   eventById: Record<string, ICalendarEvent>;
+  isCacheLoaded: boolean;
+  loadCachedEvents: () => Promise<void>;
+  clearCachedEvents: () => Promise<void>;
   fetchEvents: (customTimeRange?: {
     daysBefore?: number;
     daysAfter?: number;
@@ -141,6 +158,26 @@ export const useTimeBasedEvents = create<{
   events: [],
   eventIds: [],
   eventById: {},
+  isCacheLoaded: false,
+  loadCachedEvents: async () => {
+    const cached = await getSecureItem<ICalendarEvent[]>(
+      EVENTS_STORAGE_KEY,
+      [],
+    );
+    if (cached.length > 0) {
+      set({
+        events: cached,
+        eventById: Object.fromEntries(cached.map((e) => [e.id, e])),
+        isCacheLoaded: true,
+      });
+    } else {
+      set({ isCacheLoaded: true });
+    }
+  },
+  clearCachedEvents: async () => {
+    await removeSecureItem(EVENTS_STORAGE_KEY);
+    set({ events: [], eventById: {} });
+  },
   getTimeRangeConfig,
   updateTimeRangeConfig: (newConfig) => {
     Object.assign(getTimeRangeConfig(), newConfig);
@@ -213,9 +250,11 @@ export const useTimeBasedEvents = create<{
             store = appendOne(store, parsedEvent.id, parsedEvent);
           }
           scheduleEventNotifications(parsedEvent);
+          const updatedEvents = denormalize(store);
+          saveEventsToStorage(updatedEvents);
           return {
             eventById: store.byKey,
-            events: denormalize(store),
+            events: updatedEvents,
           };
         });
       },

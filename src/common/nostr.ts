@@ -27,8 +27,9 @@ import { signerManager } from "./signer";
 import { RSVPStatus } from "../utils/types";
 import { EventKinds } from "./EventConfigs";
 import { nostrRuntime } from "./nostrRuntime";
+import { useRelayStore } from "../stores/relays";
 
-const defaultRelays = [
+export const defaultRelays = [
   "wss://relay.damus.io/",
   "wss://relay.primal.net/",
   "wss://nos.lol",
@@ -46,8 +47,9 @@ const _onAcceptedRelays = console.log.bind(
 
 export const pool = new SimplePool();
 
-export const getRelays = () => {
-  return defaultRelays;
+export const getRelays = (): string[] => {
+  const userRelays = useRelayStore.getState().relays;
+  return userRelays.length > 0 ? userRelays : defaultRelays;
 };
 
 export async function getUserPublicKey() {
@@ -213,7 +215,7 @@ export async function publishPrivateCalendarEvent({
 }: ICalendarEvent) {
   const viewSecretKey = generateSecretKey();
   const uniqueCalId = uuid();
-  const eventKind = repeat.frequency
+  const eventKind = repeat.rrule
     ? EventKinds.PrivateCalendarRecurringEvent
     : EventKinds.PrivateCalendarEvent;
   const eventData = [
@@ -225,9 +227,9 @@ export async function publishPrivateCalendarEvent({
     ["d", uniqueCalId],
     ["location", location],
   ];
-  if (repeat && repeat.frequency) {
-    eventData.push(["L", "recurring"]);
-    eventData.push(["l", repeat.frequency]);
+  if (repeat && repeat.rrule) {
+    eventData.push(["L", "rrule"]);
+    eventData.push(["l", repeat.rrule]);
   }
 
   participants.forEach((participant) => {
@@ -473,34 +475,33 @@ export async function fetchPrivateCalendarEvents(
 export const publishToRelays = (
   event: Event,
   onAcceptedRelays: (url: string) => void = _onAcceptedRelays,
+  relays?: string[],
 ) => {
+  const relayList = (relays ?? getRelays()).map(normalizeURL);
   return Promise.any(
-    getRelays()
-      .map(normalizeURL)
-      .map(async (url) => {
-        let relay: AbstractRelay | null = null;
-        try {
-          relay = await ensureRelay(url, { connectionTimeout: 5000 });
-          return await Promise.race<string>([
-            relay.publish(event).then((reason) => {
-              // console.log("accepted relays", url);
-              onAcceptedRelays(url);
-              return reason;
-            }),
-            new Promise<string>((_, reject) =>
-              setTimeout(() => reject("timeout"), 5000),
-            ),
-          ]);
-        } finally {
-          if (relay) {
-            try {
-              await relay.close();
-            } catch {
-              // Ignore closing errors
-            }
+    relayList.map(async (url) => {
+      let relay: AbstractRelay | null = null;
+      try {
+        relay = await ensureRelay(url, { connectionTimeout: 5000 });
+        return await Promise.race<string>([
+          relay.publish(event).then((reason) => {
+            onAcceptedRelays(url);
+            return reason;
+          }),
+          new Promise<string>((_, reject) =>
+            setTimeout(() => reject("timeout"), 5000),
+          ),
+        ]);
+      } finally {
+        if (relay) {
+          try {
+            await relay.close();
+          } catch {
+            // Ignore closing errors
           }
         }
-      }),
+      }
+    }),
   );
 };
 
@@ -533,11 +534,15 @@ export const publishPublicCalendarEvent = async (
     ["d", id],
     ["start", String(Math.floor(event.begin / 1000))],
     ["end", String(Math.floor(event.end / 1000))],
-    ["image", event.image],
-    ["location", event.location],
   ];
   if (event.image) {
     tags.push(["image", event.image]);
+  }
+
+  if (event.location.length > 0) {
+    event.location.map((location) => {
+      tags.push(["image", location]);
+    });
   }
 
   if (event.participants.length > 0) {
@@ -556,23 +561,6 @@ export const publishPublicCalendarEvent = async (
   const fullEvent = await signer.signEvent(baseEvent);
   fullEvent.id = getEventHash(baseEvent);
   return publishToRelays(fullEvent, onAcceptedRelays);
-};
-
-export const fetchUserInfo = (
-  userPublicKeys: string[],
-  onEvent: (event: Event) => void,
-) => {
-  const relayList = getRelays();
-  const filter: Filter = {
-    kinds: [EventKinds.UserProfile],
-    authors: userPublicKeys,
-  };
-
-  return pool.subscribeMany(relayList, [filter], {
-    onevent: (event: Event) => {
-      onEvent(event);
-    },
-  });
 };
 
 export const encodeNAddr = (address: Omit<AddressPointer, "relays">) => {
@@ -614,4 +602,36 @@ export const fetchUserProfile = async (
     kinds: [0],
     authors: [pubkey],
   });
+};
+
+export const fetchRelayList = async (pubkey: string): Promise<string[]> => {
+  // Combine default relays with signer-provided relays for broader discovery
+  const signerRelays = await signerManager.getSignerRelays();
+  const queryRelays = [...new Set([...defaultRelays, ...signerRelays])];
+  const event = await nostrRuntime.fetchOne(queryRelays, {
+    kinds: [EventKinds.RelayList],
+    authors: [pubkey],
+  });
+  if (!event) return [];
+  return event.tags
+    .filter((tag) => tag[0] === "r" && tag[1])
+    .map((tag) => tag[1]);
+};
+
+export const publishRelayList = async (relays: string[]): Promise<void> => {
+  const pubKey = await getUserPublicKey();
+  const tags = relays.map((url) => ["r", url]);
+  const baseEvent: UnsignedEvent = {
+    kind: EventKinds.RelayList,
+    pubkey: pubKey,
+    tags,
+    content: "",
+    created_at: Math.floor(Date.now() / 1000),
+  };
+  const signer = await signerManager.getSigner();
+  const fullEvent = await signer.signEvent(baseEvent);
+  fullEvent.id = getEventHash(baseEvent);
+  // Publish to both user relays and default relays so the list is discoverable
+  const allRelays = [...new Set([...relays, ...defaultRelays])];
+  await publishToRelays(fullEvent, () => {}, allRelays);
 };
