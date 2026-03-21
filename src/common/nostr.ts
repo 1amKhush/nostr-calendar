@@ -621,10 +621,12 @@ export const publishPublicCalendarEvent = async (
  * @param reason - Optional human-readable reason for deletion
  */
 export async function publishDeletionEvent({
+  kinds,
   coordinates = [],
   eventIds = [],
   reason = "",
 }: {
+  kinds: number[];
   coordinates?: string[];
   eventIds?: string[];
   reason?: string;
@@ -637,6 +639,9 @@ export async function publishDeletionEvent({
   }
   for (const coord of coordinates) {
     tags.push(["a", coord]);
+  }
+  for (const kind of kinds) {
+    tags.push(["k", kind.toString()]);
   }
 
   const unsignedEvent: UnsignedEvent = {

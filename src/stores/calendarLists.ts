@@ -238,7 +238,10 @@ export const useCalendarLists = create<CalendarListsState>((set, get) => ({
     const userPubkey = await getUserPublicKey();
     const coordinate = `${EventKinds.PrivateCalendarList}:${userPubkey}:${calendarId}`;
 
-    await publishDeletionEvent({ coordinates: [coordinate] });
+    await publishDeletionEvent({
+      coordinates: [coordinate],
+      kinds: [EventKinds.PrivateCalendarList],
+    });
 
     set((state) => {
       const calendars = state.calendars.filter((c) => c.id !== calendarId);
