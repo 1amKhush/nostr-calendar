@@ -38,8 +38,13 @@ export function CalendarSidebar({ onClose }: CalendarSidebarProps) {
   const intl = useIntl();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
-  const { calendars, toggleVisibility, createCalendar, updateCalendar, deleteCalendar } =
-    useCalendarLists();
+  const {
+    calendars,
+    toggleVisibility,
+    createCalendar,
+    updateCalendar,
+    deleteCalendar,
+  } = useCalendarLists();
 
   const [manageDialogOpen, setManageDialogOpen] = useState(false);
   const [editingCalendar, setEditingCalendar] = useState<

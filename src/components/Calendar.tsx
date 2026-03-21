@@ -30,7 +30,6 @@ function Calendar() {
   useEffect(() => {
     if (user) {
       useCalendarLists.getState().fetchCalendars();
-      useInvitations.getState().fetchInvitations();
     }
   }, [user]);
 
@@ -38,23 +37,29 @@ function Calendar() {
   // This ensures events update when calendars load from network
   // or when the user toggles calendar visibility.
   useEffect(() => {
-    if (user && calendarsLoaded && calendars.length > 0) {
+    if (user && calendarsLoaded) {
+      useInvitations.getState().fetchInvitations();
       events.fetchPrivateEvents();
     }
   }, [user, calendarsLoaded, calendars]);
 
   const { layout } = useLayout();
-
+  const visibileCalendars = new Set(
+    calendars.filter((cal) => cal.isVisible).map((cal) => cal.id),
+  );
+  const visibleEvents = events.events.filter((evt) =>
+    visibileCalendars.has(evt.calendarId ?? ""),
+  );
   return (
     <Box p={2}>
       <CalendarHeader />
       {layout === "day" && (
-        <SwipeableView View={DayView} events={events.events} />
+        <SwipeableView View={DayView} events={visibleEvents} />
       )}
       {layout === "week" && (
-        <SwipeableView View={WeekView} events={events.events} />
+        <SwipeableView View={WeekView} events={visibleEvents} />
       )}
-      {layout === "month" && <MonthView events={events.events} />}
+      {layout === "month" && <MonthView events={visibleEvents} />}
     </Box>
   );
 }

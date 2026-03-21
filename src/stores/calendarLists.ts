@@ -16,6 +16,8 @@ import { create } from "zustand";
 import {
   getSecureItem,
   setSecureItem,
+  setItem,
+  getItem,
   removeSecureItem,
 } from "../common/localStorage";
 import {
@@ -52,7 +54,7 @@ const saveCalendarsToStorage = (calendars: ICalendarList[]) => {
  * not part of the Nostr event).
  */
 const saveVisibilityToStorage = (visibility: Record<string, boolean>) => {
-  setSecureItem(CALENDAR_VISIBILITY_KEY, visibility);
+  setItem(CALENDAR_VISIBILITY_KEY, visibility);
 };
 
 let subscriptionHandle: SubscriptionHandle | undefined;
@@ -128,11 +130,7 @@ export const useCalendarLists = create<CalendarListsState>((set, get) => ({
     const userPubkey = await getUserPublicKey();
     if (!userPubkey) return;
 
-    // Fetch deletion events first so the EventStore knows which events
-    // to reject before calendar list events arrive.
-    await nostrRuntime.fetchDeletionEvents(getRelays(), userPubkey);
-
-    const visibility = await getSecureItem<Record<string, boolean>>(
+    const visibility = getItem<Record<string, boolean>>(
       CALENDAR_VISIBILITY_KEY,
       {},
     );
@@ -174,10 +172,7 @@ export const useCalendarLists = create<CalendarListsState>((set, get) => ({
       // At EOSE, create a default calendar if no calendars are found for the user.
       // This handles the case where the user has no calendars at all.
       () => {
-        set(({ calendars }) => {
-          if (calendars.length === 0) {
-            createDefaultCalendar();
-          }
+        set(() => {
           return {
             isLoaded: true,
           };
@@ -188,9 +183,7 @@ export const useCalendarLists = create<CalendarListsState>((set, get) => ({
     setTimeout(async () => {
       const { calendars } = get();
       if (calendars.length === 0) {
-        const defaultCal = await createDefaultCalendar();
-        set({ calendars: [defaultCal], isLoaded: true });
-        saveCalendarsToStorage([defaultCal]);
+        set({ isLoaded: true });
       } else {
         set({ isLoaded: true });
       }

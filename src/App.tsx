@@ -132,9 +132,7 @@ function Application() {
       />
       <RelayManager />
       <Toolbar />
-      <Box>
-        <Routing />
-      </Box>
+      <Box>{user && isInitialized && <Routing />}</Box>
     </>
   );
 }
