@@ -28,10 +28,11 @@ import {
 } from "../common/nostr";
 import { nostrEventToCalendar } from "../utils/parser";
 import { useCalendarLists } from "./calendarLists";
-import { buildEventRef, parseEventRef } from "../utils/calendarListTypes";
+import { buildEventRef } from "../utils/calendarListTypes";
 import type { IInvitation } from "../utils/calendarListTypes";
 import { EventKinds } from "../common/EventConfigs";
 import type { SubscriptionHandle } from "../common/nostrRuntime";
+import { getDTag } from "../common/nostrRuntime/utils/helpers";
 
 const INVITATIONS_STORAGE_KEY = "cal:invitations";
 
@@ -98,6 +99,57 @@ export const useInvitations = create<InvitationsState>((set, get) => ({
 
     // Track processed IDs to avoid duplicate processing within this fetch
     const processedIds = new Set<string>();
+    const invitations: IInvitation[] = [];
+
+    function onInvitationEventsFetched() {
+      set((state) => {
+        const updated = [...state.invitations, ...invitations];
+        const unreadCount = updated.filter(
+          (i) => i.status === "pending",
+        ).length;
+        saveInvitationsToStorage(updated);
+        return { invitations: updated, unreadCount };
+      });
+    }
+
+    function onInvitationsFetched() {
+      const kinds = new Set<number>();
+      const pubkeys = new Set<string>();
+      const eventIds = new Set<string>();
+      invitations.forEach((inv) => {
+        if (
+          [
+            EventKinds.PrivateCalendarRecurringEvent,
+            EventKinds.PrivateCalendarEvent,
+          ].includes(Number(inv.kind))
+        ) {
+          kinds.add(Number(inv.kind));
+          pubkeys.add(inv.pubkey);
+          eventIds.add(inv.eventId);
+        }
+      });
+      fetchPrivateCalendarEvents(
+        {
+          eventIds: Array.from(eventIds),
+          authors: Array.from(pubkeys),
+          kinds: Array.from(kinds),
+        },
+        (event) => {
+          const eventId = getDTag(event);
+          const invitation = invitations.find((inv) => inv.eventId === eventId);
+          if (!invitation) {
+            return;
+          }
+          const decrypted = viewPrivateEvent(event, invitation.viewKey);
+          const parsed = nostrEventToCalendar(decrypted, {
+            viewKey: invitation.viewKey,
+            isPrivateEvent: true,
+          });
+          invitation.event = { ...parsed, isInvitation: true };
+        },
+        onInvitationEventsFetched,
+      );
+    }
 
     invitationSubHandle = fetchCalendarGiftWraps(
       {
@@ -112,8 +164,9 @@ export const useInvitations = create<InvitationsState>((set, get) => ({
         processedIds.add(rumor.eventId);
 
         // Check if already in invitations list
-        const { invitations } = get();
-        if (invitations.some((inv) => inv.eventId === rumor.eventId)) return;
+        const { invitations: fetchedInvitations } = get();
+        if (fetchedInvitations.some((inv) => inv.eventId === rumor.eventId))
+          return;
 
         // Create the invitation entry
         const invitation: IInvitation = {
@@ -122,38 +175,12 @@ export const useInvitations = create<InvitationsState>((set, get) => ({
           viewKey: rumor.viewKey,
           receivedAt: Date.now(),
           status: "pending",
+          pubkey: rumor.authorPubkey,
+          kind: rumor.kind,
         };
-
-        // Try to resolve the actual event data
-        try {
-          await fetchPrivateCalendarEvents(
-            { eventIds: [rumor.eventId] },
-            (event) => {
-              const decrypted = viewPrivateEvent(event, rumor.viewKey);
-              const parsed = nostrEventToCalendar(decrypted, {
-                viewKey: rumor.viewKey,
-                isPrivateEvent: true,
-              });
-              invitation.event = { ...parsed, isInvitation: true };
-            },
-          );
-        } catch (error) {
-          console.error(
-            "Failed to resolve invitation event:",
-            rumor.eventId,
-            error,
-          );
-        }
-
-        set((state) => {
-          const updated = [...state.invitations, invitation];
-          const unreadCount = updated.filter(
-            (i) => i.status === "pending",
-          ).length;
-          saveInvitationsToStorage(updated);
-          return { invitations: updated, unreadCount };
-        });
+        invitations.push(invitation);
       },
+      onInvitationsFetched,
     );
   },
 

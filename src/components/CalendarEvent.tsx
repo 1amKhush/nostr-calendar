@@ -117,6 +117,7 @@ export function CalendarEventCard({
         sx={{
           position: "absolute",
           backgroundColor: colorScheme.backgroundColor,
+          border: colorScheme.border,
           top: `calc(${event.top}px + ${offset})`,
           left: `${(event.col / event.colSpan) * 100}%`,
           width: `${100 / event.colSpan}%`,
@@ -216,7 +217,10 @@ function ActionButtons({
           </Tooltip>
         </IconButton>
       )}
-      <IconButton aria-label={intl.formatMessage({ id: "navigation.close" })} onClick={closeModal}>
+      <IconButton
+        aria-label={intl.formatMessage({ id: "navigation.close" })}
+        onClick={closeModal}
+      >
         <CloseIcon />
       </IconButton>
     </Box>
@@ -264,7 +268,9 @@ export function CalendarEvent({ event }: CalendarEventViewProps) {
 
           {event.description && (
             <>
-              <Typography variant="subtitle1">{intl.formatMessage({ id: "navigation.description" })}</Typography>
+              <Typography variant="subtitle1">
+                {intl.formatMessage({ id: "navigation.description" })}
+              </Typography>
               <Typography variant="body2">
                 <Markdown remarkPlugins={[remarkGfm]}>
                   {event.description}
@@ -277,7 +283,9 @@ export function CalendarEvent({ event }: CalendarEventViewProps) {
 
           {locations.length > 0 && (
             <>
-              <Typography variant="subtitle1">{intl.formatMessage({ id: "navigation.location" })}</Typography>
+              <Typography variant="subtitle1">
+                {intl.formatMessage({ id: "navigation.location" })}
+              </Typography>
               <Typography>{locations.join(", ")}</Typography>
 
               <Divider />

@@ -20,6 +20,7 @@ function Calendar() {
   const { user } = useUser();
   const events = useTimeBasedEvents((state) => state);
   const { calendars, isLoaded: calendarsLoaded } = useCalendarLists();
+  const { fetchInvitations, invitations } = useInvitations();
 
   if (filters?.showPublicEvents && !isMobile) {
     events.fetchEvents();
@@ -38,7 +39,7 @@ function Calendar() {
   // or when the user toggles calendar visibility.
   useEffect(() => {
     if (user && calendarsLoaded) {
-      useInvitations.getState().fetchInvitations();
+      fetchInvitations();
       events.fetchPrivateEvents();
     }
   }, [user, calendarsLoaded, calendars]);
@@ -50,16 +51,18 @@ function Calendar() {
   const visibleEvents = events.events.filter((evt) =>
     visibileCalendars.has(evt.calendarId ?? ""),
   );
+  const allEvents = [
+    ...visibleEvents,
+    ...invitations.filter((inv) => inv.event).map((inv) => inv.event),
+  ];
   return (
     <Box p={2}>
       <CalendarHeader />
-      {layout === "day" && (
-        <SwipeableView View={DayView} events={visibleEvents} />
-      )}
+      {layout === "day" && <SwipeableView View={DayView} events={allEvents} />}
       {layout === "week" && (
-        <SwipeableView View={WeekView} events={visibleEvents} />
+        <SwipeableView View={WeekView} events={allEvents} />
       )}
-      {layout === "month" && <MonthView events={visibleEvents} />}
+      {layout === "month" && <MonthView events={allEvents} />}
     </Box>
   );
 }

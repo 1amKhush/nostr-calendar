@@ -49,6 +49,10 @@ export interface ICalendarList {
  * accept them to add the event to one of their calendars.
  */
 export interface IInvitation {
+  /** kind of Invitation */
+  kind: string;
+  /** Event author's pubkey */
+  pubkey: string;
   /** Nostr event ID of the gift wrap */
   giftWrapId: string;
   /** The referenced calendar event's d-tag */

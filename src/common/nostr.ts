@@ -328,6 +328,8 @@ export async function getDetailsFromGiftWrap(giftWrap: Event) {
     throw new Error("invalid rumor. a tag not found");
   }
   const eventId = aTag[1].split(":")[2]; // Extract event id from the tag
+  const authorPubkey = aTag[1].split(":")[1]; // Extract author pubkey from the tag
+  const kind = aTag[1].split(":")[0]; // Extract kind from the tag
   const viewKey = rumor.tags.find((tag) => tag[0] === "viewKey")?.[1];
   if (!viewKey) {
     throw new Error("invalid rumor: viewKey not found");
@@ -335,6 +337,8 @@ export async function getDetailsFromGiftWrap(giftWrap: Event) {
   return {
     eventId,
     viewKey,
+    authorPubkey,
+    kind,
   };
 }
 
@@ -351,7 +355,13 @@ export const fetchCalendarGiftWraps = (
     until,
     limit,
   }: { participants: string[]; since?: number; until?: number; limit?: number },
-  onEvent: (event: { eventId: string; viewKey: string }) => void,
+  onEvent: (event: {
+    eventId: string;
+    viewKey: string;
+    authorPubkey: string;
+    kind: string;
+  }) => void,
+  onEose: () => void,
 ) => {
   const relayList = getRelays();
   const filter: Filter = {
@@ -372,6 +382,7 @@ export const fetchCalendarGiftWraps = (
         console.error("Failed to unwrap gift wrap:", error);
       }
     },
+    onEose,
   });
 };
 
@@ -496,29 +507,33 @@ export function fetchPrivateCalendarEvents(
   {
     eventIds,
     authors,
+    kinds,
     since,
     until,
-  }: { eventIds: string[]; authors?: string[]; since?: number; until?: number },
+  }: {
+    kinds: number[];
+    eventIds: string[];
+    authors?: string[];
+    since?: number;
+    until?: number;
+  },
   onEvent: (event: Event) => void,
+  onEose: () => void,
 ) {
   const relayList = getRelays();
   const filter: Filter = {
-    kinds: [EventKinds.PrivateCalendarEvent],
+    kinds: kinds,
     "#d": eventIds,
     ...(authors && authors.length > 0 && { authors }),
     ...(since && { since }),
     ...(until && { until }),
   };
-  const recurringFilter: Filter = {
-    kinds: [EventKinds.PrivateCalendarRecurringEvent],
-    "#d": eventIds,
-    ...(authors && authors.length > 0 && { authors }),
-  };
 
-  return nostrRuntime.subscribe(relayList, [filter, recurringFilter], {
+  return nostrRuntime.subscribe(relayList, [filter], {
     onEvent: (event: Event) => {
       onEvent(event);
     },
+    onEose,
   });
 }
 
