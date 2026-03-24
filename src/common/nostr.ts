@@ -29,6 +29,8 @@ import { nostrRuntime } from "./nostrRuntime";
 import { useRelayStore } from "../stores/relays";
 import { useCalendarLists } from "../stores/calendarLists";
 import { buildEventRef } from "../utils/calendarListTypes";
+import { sha256 } from "@noble/hashes/sha2.js";
+import { bytesToHex, utf8ToBytes } from "@noble/hashes/utils";
 
 export const defaultRelays = [
   "wss://relay.damus.io/",
@@ -215,39 +217,32 @@ export const fetchPublicRSVPEvents = (
  * The event reference includes the viewKey so it can be decrypted later
  * when loading events from the calendar list.
  */
-export async function publishPrivateCalendarEvent(
-  {
-    title,
-    description,
-    begin: start,
-    end,
-    participants,
-    repeat,
-    image,
-    location,
-  }: ICalendarEvent,
-  calendarId: string,
+async function preparePrivateCalendarEvent(
+  event: ICalendarEvent,
+  dTag: string,
+  viewSecretKey: Uint8Array,
 ) {
-  const viewSecretKey = generateSecretKey();
-  const uniqueCalId = uuid();
-  const eventKind = repeat.rrule
+  const eventKind = event.repeat.rrule
     ? EventKinds.PrivateCalendarRecurringEvent
     : EventKinds.PrivateCalendarEvent;
-  const eventData = [
-    ["title", title],
-    ["description", description],
-    ["start", start / 1000],
-    ["end", end / 1000],
-    ["image", image],
-    ["d", uniqueCalId],
-    ["location", location],
+  const eventData: (string | number)[][] = [
+    ["title", event.title],
+    ["description", event.description],
+    ["start", event.begin / 1000],
+    ["end", event.end / 1000],
+    ["image", event.image ?? ""],
+    ["d", dTag],
   ];
-  if (repeat && repeat.rrule) {
+  if (event.repeat?.rrule) {
     eventData.push(["L", "rrule"]);
-    eventData.push(["l", repeat.rrule]);
+    eventData.push(["l", event.repeat.rrule]);
   }
 
-  participants.forEach((participant) => {
+  event.location.forEach((loc) => {
+    eventData.push(["location", loc]);
+  });
+
+  event.participants.forEach((participant) => {
     eventData.push(["p", participant]);
   });
 
@@ -263,20 +258,41 @@ export async function publishPrivateCalendarEvent(
     created_at: Math.floor(Date.now() / 1000),
     kind: eventKind,
     content: eventContent,
-    tags: [["d", uniqueCalId]],
+    tags: [["d", dTag]],
   };
   const signer = await signerManager.getSigner();
   const signedEvent = await signer.signEvent(unsignedCalendarEvent);
   const evtId = getEventHash(unsignedCalendarEvent);
   signedEvent.id = evtId;
-  // Publish the private event to a relay
+
+  return {
+    signedEvent,
+    viewSecretKey,
+    eventKind,
+    dTag,
+    userPublicKey,
+  };
+}
+
+export async function publishPrivateCalendarEvent(
+  event: ICalendarEvent,
+  calendarId: string,
+) {
+  const viewSecretKey = generateSecretKey();
+  const dTagRoot = `${JSON.stringify(event)}-${Date.now()}`;
+  const dTag = bytesToHex(sha256(utf8ToBytes(dTagRoot))).substring(0, 30);
+  const { signedEvent, eventKind, userPublicKey } =
+    await preparePrivateCalendarEvent(event, dTag, viewSecretKey);
+
   await publishToRelays(signedEvent);
 
   // Gift-wrap the event keys to each participant (including the creator).
   // These serve as invitations — recipients will see them as notifications
   // and can accept them into their own calendars.
   const giftWraps: Event[] = [];
-  const targetPubKeys = Array.from(new Set([userPublicKey, ...participants]));
+  const targetPubKeys = Array.from(
+    new Set([userPublicKey, ...event.participants]),
+  );
   for (const participant of targetPubKeys) {
     const giftWrap = await nip59.wrapEvent(
       {
@@ -285,7 +301,7 @@ export async function publishPrivateCalendarEvent(
         kind: EventKinds.CalendarEventRumor,
         content: "",
         tags: [
-          ["a", `${eventKind}:${participant}:${uniqueCalId}`],
+          ["a", `${eventKind}:${participant}:${dTag}`],
           ["viewKey", nip19.nsecEncode(viewSecretKey)],
         ],
       },
@@ -306,16 +322,30 @@ export async function publishPrivateCalendarEvent(
   const eventRef = buildEventRef({
     kind: eventKind,
     authorPubkey: userPublicKey,
-    eventDTag: uniqueCalId,
+    eventDTag: dTag,
     viewKey: nip19.nsecEncode(viewSecretKey),
-    beginTimeSecs: Math.floor(start / 1000),
-    endTimeSecs: Math.floor(end / 1000),
   });
   await useCalendarLists.getState().addEventToCalendar(calendarId, eventRef);
 
   return {
     calendarEvent: signedEvent,
     giftWraps,
+  };
+}
+
+export async function editPrivateCalendarEvent(event: ICalendarEvent) {
+  const dTag = event.id;
+  const viewSecretKey = nip19.decode(event.viewKey as NSec).data;
+  const { signedEvent } = await preparePrivateCalendarEvent(
+    event,
+    dTag,
+    viewSecretKey,
+  );
+
+  await publishToRelays(signedEvent);
+
+  return {
+    calendarEvent: signedEvent,
   };
 }
 

@@ -1,5 +1,6 @@
 import { Route, Routes } from "react-router";
 import { ViewEventPage } from "./ViewEventPage";
+import { EditEventPage } from "./EditEventPage";
 import { NotificationEventPage } from "./NotificationEventPage";
 import { ROUTES } from "../utils/routingHelper";
 import { Index } from "./Index";
@@ -9,6 +10,7 @@ import { InvitationPanel } from "./InvitationPanel";
 export const Routing = () => {
   return (
     <Routes>
+      <Route path={ROUTES.EditEventPage} element={<EditEventPage />} />
       <Route path={ROUTES.EventPage} element={<ViewEventPage />} />
       <Route
         path="/notification-event/:eventId"

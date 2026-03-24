@@ -85,8 +85,6 @@ export function parseEventRef(ref: string[]): {
   eventDTag: string;
   relayUrl: string;
   viewKey: string;
-  beginTimeSecs: number;
-  endTimeSecs: number;
   isRecurring: boolean;
 } {
   const coordinateParts = ref[0].split(":");
@@ -97,8 +95,6 @@ export function parseEventRef(ref: string[]): {
     eventDTag: coordinateParts[2],
     relayUrl: ref[1],
     viewKey: metadataParts[0],
-    beginTimeSecs: parseInt(metadataParts[1], 10),
-    endTimeSecs: parseInt(metadataParts[3], 10),
     isRecurring:
       Number(coordinateParts[0]) === EventKinds.PrivateCalendarRecurringEvent,
   };
@@ -115,12 +111,10 @@ export function buildEventRef(params: {
   eventDTag: string;
   relayUrl?: string;
   viewKey: string;
-  beginTimeSecs: number;
-  endTimeSecs: number;
 }): string[] {
   return [
     `${params.kind}:${params.authorPubkey}:${params.eventDTag}`,
     params.relayUrl || "",
-    `${params.viewKey}:${params.beginTimeSecs}::${params.endTimeSecs}`,
+    `${params.viewKey}`,
   ];
 }

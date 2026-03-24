@@ -157,6 +157,7 @@ export const useTimeBasedEvents = create<{
     daysBefore?: number;
     daysAfter?: number;
   }) => void;
+  updateEvent: (event: ICalendarEvent) => void;
   resetPrivateEvents: () => void;
   getTimeRangeConfig: () => { daysBefore: number; daysAfter: number };
   updateTimeRangeConfig: (config: {
@@ -164,6 +165,21 @@ export const useTimeBasedEvents = create<{
     daysAfter?: number;
   }) => void;
 }>((set) => ({
+  updateEvent: (updatedEvent) => {
+    set(({ events }) => {
+      let store = normalize(events);
+      if (store.allKeys.includes(updatedEvent.id)) {
+        store = removeOne(store, updatedEvent.id);
+      }
+      store = appendOne(store, updatedEvent.id, updatedEvent);
+      const updatedEvents = denormalize(store);
+      saveEventsToStorage(updatedEvents);
+      return {
+        eventById: store.byKey,
+        events: updatedEvents,
+      };
+    });
+  },
   resetPrivateEvents: () => {
     set(({ events }) => {
       const publicEvents = events.filter((evt) => !evt.isPrivateEvent);
@@ -248,21 +264,13 @@ export const useTimeBasedEvents = create<{
       // Skip already-processed events
       if (processedEventIds.has(parsed.eventDTag)) continue;
 
-      // Recurring events bypass time-range filter — they may have
-      // future occurrences even if the original start date is old
-      const inTimeRange =
-        parsed.beginTimeSecs >= timeRange.since &&
-        parsed.beginTimeSecs <= timeRange.until;
-
-      if (parsed.isRecurring || inTimeRange) {
-        eventIdsToFetch.push(parsed.eventDTag);
-        authorPubkeys.add(parsed.authorPubkey);
-        kinds.add(parsed.kind);
-        viewKeyMap.set(parsed.eventDTag, {
-          viewKey: parsed.viewKey,
-          calendarId: refToCalendarId.get(ref[0]) || "",
-        });
-      }
+      eventIdsToFetch.push(parsed.eventDTag);
+      authorPubkeys.add(parsed.authorPubkey);
+      kinds.add(parsed.kind);
+      viewKeyMap.set(parsed.eventDTag, {
+        viewKey: parsed.viewKey,
+        calendarId: refToCalendarId.get(ref[0]) || "",
+      });
     }
 
     if (eventIdsToFetch.length === 0) return;

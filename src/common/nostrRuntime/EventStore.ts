@@ -48,7 +48,7 @@ export class EventStore {
 
   /**
    * Add an event to the store
-   * Returns true if event was added, false if rejected/duplicate
+   * Returns true if event was added, false if rejected
    */
   addEvent(event: Event): boolean {
     // Validate event structure
@@ -83,8 +83,8 @@ export class EventStore {
       if (existingEventId) {
         const existingEvent = this.eventsById.get(existingEventId);
         if (existingEvent && !shouldReplaceEvent(event, existingEvent)) {
-          // Existing event is newer, don't add
-          return false;
+          // Existing event is newer, don't add but return true
+          return true;
         }
 
         // Remove old event

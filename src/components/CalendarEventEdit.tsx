@@ -29,6 +29,7 @@ import { useIntl } from "react-intl";
 import ScheduleIcon from "@mui/icons-material/Schedule";
 import { Participant } from "./Participant";
 import {
+  editPrivateCalendarEvent,
   publishPrivateCalendarEvent,
   publishPublicCalendarEvent,
 } from "../common/nostr";
@@ -45,6 +46,7 @@ import SettingsInputAntennaIcon from "@mui/icons-material/SettingsInputAntenna";
 import { getRelays } from "../common/nostr";
 import { useRelayStore } from "../stores/relays";
 import { useCalendarLists } from "../stores/calendarLists";
+import { useTimeBasedEvents } from "../stores/events";
 import CircleIcon from "@mui/icons-material/Circle";
 
 interface CalendarEventEditProps {
@@ -127,9 +129,17 @@ export function CalendarEventEdit({
       const eventToSave = { ...eventDetails, isPrivateEvent: isPrivate };
 
       if (isPrivate) {
-        await publishPrivateCalendarEvent(eventToSave, selectedCalendarId);
+        if (mode === "edit") {
+          await editPrivateCalendarEvent(eventToSave);
+        } else {
+          await publishPrivateCalendarEvent(eventToSave, selectedCalendarId);
+        }
       } else {
         await publishPublicCalendarEvent(eventToSave);
+      }
+
+      if (mode === "edit") {
+        useTimeBasedEvents.getState().updateEvent(eventToSave);
       }
 
       if (onSave) {
@@ -190,7 +200,9 @@ export function CalendarEventEdit({
           }}
         >
           <Typography variant="h6" style={{ fontWeight: 600 }}>
-            {mode === "edit" ? intl.formatMessage({ id: "event.editEvent" }) : intl.formatMessage({ id: "event.createNewEvent" })}
+            {mode === "edit"
+              ? intl.formatMessage({ id: "event.editEvent" })
+              : intl.formatMessage({ id: "event.createNewEvent" })}
           </Typography>
           <IconButton onClick={handleClose} size="small">
             <CloseIcon />
@@ -217,7 +229,9 @@ export function CalendarEventEdit({
           <Box>
             <TextField
               fullWidth
-              placeholder={intl.formatMessage({ id: "event.imageUrlPlaceholder" })}
+              placeholder={intl.formatMessage({
+                id: "event.imageUrlPlaceholder",
+              })}
               value={eventDetails.image || ""}
               onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
                 updateField("image", e.target.value);
@@ -268,7 +282,9 @@ export function CalendarEventEdit({
           <EventAttributeEditContainer>
             <EventRepeatIcon />
             <FormControl fullWidth size="small">
-              <InputLabel>{intl.formatMessage({ id: "event.selectRecurrence" })}</InputLabel>
+              <InputLabel>
+                {intl.formatMessage({ id: "event.selectRecurrence" })}
+              </InputLabel>
               <Select
                 value={
                   (eventDetails.repeat.rrule
@@ -281,16 +297,24 @@ export function CalendarEventEdit({
                 <MenuItem value={RepeatingFrequency.None}>
                   {intl.formatMessage({ id: "event.doesNotRepeat" })}
                 </MenuItem>
-                <MenuItem value={RepeatingFrequency.Daily}>{intl.formatMessage({ id: "event.daily" })}</MenuItem>
-                <MenuItem value={RepeatingFrequency.Weekly}>{intl.formatMessage({ id: "event.weekly" })}</MenuItem>
+                <MenuItem value={RepeatingFrequency.Daily}>
+                  {intl.formatMessage({ id: "event.daily" })}
+                </MenuItem>
+                <MenuItem value={RepeatingFrequency.Weekly}>
+                  {intl.formatMessage({ id: "event.weekly" })}
+                </MenuItem>
                 <MenuItem value={RepeatingFrequency.Weekday}>
                   {intl.formatMessage({ id: "event.weekdays" })}
                 </MenuItem>
-                <MenuItem value={RepeatingFrequency.Monthly}>{intl.formatMessage({ id: "event.monthly" })}</MenuItem>
+                <MenuItem value={RepeatingFrequency.Monthly}>
+                  {intl.formatMessage({ id: "event.monthly" })}
+                </MenuItem>
                 <MenuItem value={RepeatingFrequency.Quarterly}>
                   {intl.formatMessage({ id: "event.quarterly" })}
                 </MenuItem>
-                <MenuItem value={RepeatingFrequency.Yearly}>{intl.formatMessage({ id: "event.yearly" })}</MenuItem>
+                <MenuItem value={RepeatingFrequency.Yearly}>
+                  {intl.formatMessage({ id: "event.yearly" })}
+                </MenuItem>
               </Select>
             </FormControl>
           </EventAttributeEditContainer>
@@ -365,7 +389,9 @@ export function CalendarEventEdit({
           {isPrivate && calendars.length > 0 && (
             <Box>
               <FormControl fullWidth size="small">
-                <InputLabel>{intl.formatMessage({ id: "event.calendar" })}</InputLabel>
+                <InputLabel>
+                  {intl.formatMessage({ id: "event.calendar" })}
+                </InputLabel>
                 <Select
                   value={selectedCalendarId}
                   label={intl.formatMessage({ id: "event.calendar" })}
@@ -375,7 +401,8 @@ export function CalendarEventEdit({
                     return (
                       <Box display="flex" alignItems="center" gap={1}>
                         <CircleIcon sx={{ fontSize: 12, color: cal?.color }} />
-                        {cal?.title || intl.formatMessage({ id: "event.selectCalendar" })}
+                        {cal?.title ||
+                          intl.formatMessage({ id: "event.selectCalendar" })}
                       </Box>
                     );
                   }}
@@ -415,7 +442,9 @@ export function CalendarEventEdit({
               style={{ minWidth: 100 }}
               startIcon={isPrivate ? <LockIcon /> : <PublicIcon />}
             >
-              {isPrivate ? intl.formatMessage({ id: "event.private" }) : intl.formatMessage({ id: "event.public" })}
+              {isPrivate
+                ? intl.formatMessage({ id: "event.private" })
+                : intl.formatMessage({ id: "event.public" })}
             </Button>
           </Box>
         </Box>
@@ -436,7 +465,10 @@ export function CalendarEventEdit({
             <SettingsInputAntennaIcon fontSize="small" />
           </IconButton>
           <Typography variant="caption" color="textSecondary">
-            {intl.formatMessage({ id: "event.publishingToRelays" }, { count: getRelays().length })}
+            {intl.formatMessage(
+              { id: "event.publishingToRelays" },
+              { count: getRelays().length },
+            )}
           </Typography>
         </Box>
         <Button onClick={handleClose} color="inherit">
@@ -447,7 +479,9 @@ export function CalendarEventEdit({
           variant="contained"
           disabled={buttonDisabled}
         >
-          {processing ? intl.formatMessage({ id: "event.saving" }) : intl.formatMessage({ id: "event.saveEvent" })}
+          {processing
+            ? intl.formatMessage({ id: "event.saving" })
+            : intl.formatMessage({ id: "event.saveEvent" })}
         </Button>
       </DialogActions>
     </Dialog>

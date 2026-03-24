@@ -31,7 +31,8 @@ import Edit from "@mui/icons-material/Edit";
 import Delete from "@mui/icons-material/Delete";
 import { exportICS, isMobile } from "../common/utils";
 import { encodeNAddr } from "../common/nostr";
-import { getEventPage } from "../utils/routingHelper";
+import { getEditEventPage, getEventPage } from "../utils/routingHelper";
+import { useNavigate } from "react-router";
 import { isNative } from "../utils/platform";
 import { useCalendarLists } from "../stores/calendarLists";
 import { useIntl } from "react-intl";
@@ -196,7 +197,22 @@ function ActionButtons({
     navigator.clipboard.writeText(`${window.location.origin}${linkToEvent}`);
   };
   const { user } = useUser();
+  const navigate = useNavigate();
   const isEditable = event.user === user?.pubkey;
+
+  const editEvent = () => {
+    const editLink = getEditEventPage(
+      encodeNAddr({
+        pubkey: event.user,
+        identifier: event.eventId,
+        kind: event.kind,
+      }),
+      event.viewKey,
+    );
+    closeModal();
+    navigate(editLink);
+  };
+
   return (
     <Box minWidth={isMobile ? "inherit" : "160px"}>
       {!isMobile && (
@@ -223,7 +239,7 @@ function ActionButtons({
         </IconButton>
       )}
       {isEditable && (
-        <IconButton onClick={() => window.alert("edit event")}>
+        <IconButton onClick={editEvent}>
           <Tooltip title={intl.formatMessage({ id: "event.editEvent" })}>
             <Edit />
           </Tooltip>

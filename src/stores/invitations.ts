@@ -195,20 +195,12 @@ export const useInvitations = create<InvitationsState>((set, get) => ({
     if (!invitation) return;
 
     // Build the event reference for the calendar list
-    const beginTimeSecs = invitation.event
-      ? Math.floor(invitation.event.begin / 1000)
-      : 0;
-    const endTimeSecs = invitation.event
-      ? Math.floor(invitation.event.end / 1000)
-      : 0;
 
     const eventRef = buildEventRef({
       kind: invitation.kind,
       authorPubkey: invitation.event?.user || "",
       eventDTag: invitation.eventId,
       viewKey: invitation.viewKey,
-      beginTimeSecs,
-      endTimeSecs,
     });
 
     // Add to the selected calendar
