@@ -31,7 +31,10 @@ import {
 import { nostrEventToCalendar } from "../utils/parser";
 import { RSVPResponse } from "../utils/types";
 import type { ICalendarEvent } from "../utils/types";
-import { scheduleEventNotifications } from "../utils/notifications";
+import {
+  scheduleEventNotifications,
+  cancelEventNotifications,
+} from "../utils/notifications";
 import {
   getSecureItem,
   setSecureItem,
@@ -179,6 +182,10 @@ export const useTimeBasedEvents = create<{
         eventById: store.byKey,
         events: updatedEvents,
       };
+    });
+    // Cancel old notifications and reschedule with updated event data
+    cancelEventNotifications(updatedEvent.eventId).then(() => {
+      scheduleEventNotifications(updatedEvent);
     });
   },
   removeEvent: (eventId) => {
