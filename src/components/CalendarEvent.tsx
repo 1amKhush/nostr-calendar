@@ -1,5 +1,6 @@
 // import { useDraggable } from "@dnd-kit/core";
 import {
+  Alert,
   alpha,
   Box,
   Dialog,
@@ -102,12 +103,12 @@ export function CalendarEventCard({
   const maxDescLength = 20;
   const theme = useTheme();
 
-  // Look up the calendar color for this event's calendar
+  // Look up the calendar for this event
   const calendars = useCalendarLists.getState().calendars;
-  const calendarColor = event.calendarId
-    ? calendars.find((c) => c.id === event.calendarId)?.color
+  const calendar = event.calendarId
+    ? calendars.find((c) => c.id === event.calendarId)
     : undefined;
-  const colorScheme = getColorScheme(event, theme, calendarColor);
+  const colorScheme = getColorScheme(event, theme, calendar?.color);
   const title =
     event.title ??
     (event.description.length > maxDescLength
@@ -335,6 +336,10 @@ export function CalendarEvent({ event }: CalendarEventViewProps) {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const locations = event.location.filter((location) => !!location?.trim?.());
+  const calendars = useCalendarLists.getState().calendars;
+  const calendar = event.calendarId
+    ? calendars.find((c) => c.id === event.calendarId)
+    : undefined;
   return (
     <Box
       sx={{
@@ -407,6 +412,31 @@ export function CalendarEvent({ event }: CalendarEventViewProps) {
               ))}
             </Stack>
           </Box>
+
+          {calendar ? (
+            <>
+              <Divider />
+              <Box display="flex" alignItems="center" gap={1}>
+                <Box
+                  sx={{
+                    width: 12,
+                    height: 12,
+                    borderRadius: "50%",
+                    backgroundColor: calendar.color,
+                    flexShrink: 0,
+                  }}
+                />
+                <Typography variant="body2">{calendar.title}</Typography>
+              </Box>
+            </>
+          ) : (
+            <>
+              <Divider />
+              <Alert severity="info">
+                {intl.formatMessage({ id: "event.notInCalendar" })}
+              </Alert>
+            </>
+          )}
         </Stack>
       </Box>
     </Box>
