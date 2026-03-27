@@ -135,6 +135,7 @@ export const EditEventPage = () => {
             onClose={() => navigate(-1)}
             onSave={() => navigate(-1)}
             mode="edit"
+            display="page"
           />
         )}
       </Box>
