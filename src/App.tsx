@@ -10,6 +10,7 @@ import {
 } from "@mui/material";
 import { theme } from "./theme";
 import { useEffect, useState } from "react";
+import dayjs from "dayjs";
 import { useUser } from "./stores/user";
 import { IntlProvider, useIntl } from "react-intl";
 import { flattenMessages } from "./common/utils";
@@ -28,11 +29,14 @@ import { isNative } from "./utils/platform";
 import { ICSListener } from "./components/ICSListener";
 import { ICalendarEvent } from "./utils/types";
 
-let _locale =
+const browserLocale =
   (navigator.languages && navigator.languages[0]) ||
   navigator.language ||
   "en-US";
-_locale = ~Object.keys(dictionary).indexOf(_locale) ? _locale : "en-US";
+
+const _locale = ~Object.keys(dictionary).indexOf(browserLocale)
+  ? browserLocale
+  : "en-US";
 
 function Application() {
   const intl = useIntl();
@@ -147,15 +151,45 @@ function Application() {
   );
 }
 
+function useDayjsLocale() {
+  const [dayjsLocale, setDayjsLocale] = useState("en");
+
+  useEffect(() => {
+    const tag = browserLocale.toLowerCase();
+    // Try full tag (e.g. "en-gb"), then language only (e.g. "de")
+    const candidates = [tag, tag.split("-")[0]];
+    console.log(browserLocale);
+    (async () => {
+      for (const candidate of candidates) {
+        if (candidate === "en") return; // already the default
+        try {
+          await import(/* @vite-ignore */ `dayjs/locale/${candidate}.js`);
+          dayjs.locale(candidate);
+          setDayjsLocale(candidate);
+          return;
+        } catch {
+          // locale file not available, try next
+        }
+      }
+    })();
+  }, []);
+
+  return dayjsLocale;
+}
+
 export default function App() {
   const i18nLocale = _locale;
+  const dayjsLocale = useDayjsLocale();
   const locale_dictionary = {
     ...flattenMessages(dictionary["en-US"]),
     ...flattenMessages(dictionary[i18nLocale]),
   };
   return (
     <IntlProvider locale={i18nLocale} messages={locale_dictionary}>
-      <LocalizationProvider dateAdapter={AdapterDayjs}>
+      <LocalizationProvider
+        dateAdapter={AdapterDayjs}
+        adapterLocale={dayjsLocale}
+      >
         <ThemeProvider theme={theme}>
           <CssBaseline />
           <BrowserRouter>
