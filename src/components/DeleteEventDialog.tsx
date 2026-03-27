@@ -74,6 +74,7 @@ export function DeleteEventDialog({
         case "deleteForEveryone": {
           await publishDeletionEvent({
             coordinates: [eventCoordinate],
+            eventIds: event.eventId ? [event.eventId] : [],
             kinds: [event.kind],
           });
           if (isInCalendar && event.calendarId) {

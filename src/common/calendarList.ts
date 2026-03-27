@@ -116,6 +116,7 @@ export async function decryptCalendarList(
 
   return {
     id: dTag,
+    eventId: event.id,
     title,
     description,
     color,
@@ -195,13 +196,15 @@ export async function createCalendar(
 ): Promise<ICalendarList> {
   const idRoot = `${JSON.stringify(calendarData)}-${Date.now}`;
   const id = bytesToHex(sha256(utf8ToBytes(idRoot))).substring(0, 30);
-  const calendar = {
+  const calendar: ICalendarList = {
     ...calendarData,
     id,
+    eventId: "",
     createdAt: Math.floor(Date.now() / 1000),
   };
 
-  await publishCalendarList(calendar);
+  const publishedEvent = await publishCalendarList(calendar);
+  calendar.eventId = publishedEvent.id;
 
   return calendar;
 }
@@ -217,6 +220,7 @@ export async function createDefaultCalendar(): Promise<ICalendarList> {
     title: DEFAULT_CALENDAR_TITLE,
     description: "",
     color: DEFAULT_CALENDAR_COLOR,
+    eventId: "",
     eventRefs: [],
     isVisible: true,
   };

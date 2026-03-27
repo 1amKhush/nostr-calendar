@@ -67,6 +67,7 @@ vi.mock("nostr-tools", async (importOriginal) => {
 
 const makeCalendar = (overrides?: Partial<ICalendarList>): ICalendarList => ({
   id: "cal-uuid-1",
+  eventId: "abc123",
   title: "My Calendar",
   description: "Personal events",
   color: "#4285f4",

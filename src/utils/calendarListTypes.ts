@@ -12,6 +12,8 @@ import type { ICalendarEvent } from "./types";
 export interface ICalendarList {
   /** Universally unique identifier, used as the Nostr "d" tag */
   id: string;
+  /** Nostr event ID (hash) of the most recently seen version of this calendar list */
+  eventId: string;
   /** Calendar display title */
   title: string;
   /** Optional description of the calendar */

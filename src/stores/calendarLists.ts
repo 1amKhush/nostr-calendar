@@ -198,6 +198,7 @@ export const useCalendarLists = create<CalendarListsState>((set, get) => ({
       title,
       description,
       color,
+      eventId: "",
       eventRefs: [],
       isVisible: true,
     });
@@ -219,7 +220,8 @@ export const useCalendarLists = create<CalendarListsState>((set, get) => ({
       ...calendar,
       createdAt: Math.floor(Date.now() / 1000),
     };
-    await publishCalendarList(updated);
+    const publishedEvent = await publishCalendarList(updated);
+    updated.eventId = publishedEvent.id;
 
     set((state) => {
       const calendars = state.calendars.map((c) =>
@@ -237,9 +239,12 @@ export const useCalendarLists = create<CalendarListsState>((set, get) => ({
   deleteCalendar: async (calendarId) => {
     const userPubkey = await getUserPublicKey();
     const coordinate = `${EventKinds.PrivateCalendarList}:${userPubkey}:${calendarId}`;
+    const calendar = get().calendars.find((c) => c.id === calendarId);
+    const eventIds = calendar?.eventId ? [calendar.eventId] : [];
 
     await publishDeletionEvent({
       coordinates: [coordinate],
+      eventIds,
       kinds: [EventKinds.PrivateCalendarList],
     });
 
