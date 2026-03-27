@@ -47,7 +47,7 @@ import { getRelays } from "../common/nostr";
 import { useRelayStore } from "../stores/relays";
 import { useCalendarLists } from "../stores/calendarLists";
 import { useTimeBasedEvents } from "../stores/events";
-import CircleIcon from "@mui/icons-material/Circle";
+import { CalendarListSelect } from "./CalendarListSelect";
 
 interface CalendarEventEditProps {
   open: boolean;
@@ -389,37 +389,13 @@ export function CalendarEventEdit({
           </Box>
 
           {/* Calendar Selector — only shown for private events */}
-          {isPrivate && calendars.length > 0 && (
+          {isPrivate && (
             <Box>
-              <FormControl fullWidth size="small">
-                <InputLabel>
-                  {intl.formatMessage({ id: "event.calendar" })}
-                </InputLabel>
-                <Select
-                  value={selectedCalendarId}
-                  label={intl.formatMessage({ id: "event.calendar" })}
-                  onChange={(e) => setSelectedCalendarId(e.target.value)}
-                  renderValue={(value) => {
-                    const cal = calendars.find((c) => c.id === value);
-                    return (
-                      <Box display="flex" alignItems="center" gap={1}>
-                        <CircleIcon sx={{ fontSize: 12, color: cal?.color }} />
-                        {cal?.title ||
-                          intl.formatMessage({ id: "event.selectCalendar" })}
-                      </Box>
-                    );
-                  }}
-                >
-                  {calendars.map((cal) => (
-                    <MenuItem key={cal.id} value={cal.id}>
-                      <Box display="flex" alignItems="center" gap={1}>
-                        <CircleIcon sx={{ fontSize: 12, color: cal.color }} />
-                        {cal.title}
-                      </Box>
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
+              <CalendarListSelect
+                value={selectedCalendarId}
+                onChange={setSelectedCalendarId}
+                label={intl.formatMessage({ id: "event.calendar" })}
+              />
             </Box>
           )}
           <Divider />

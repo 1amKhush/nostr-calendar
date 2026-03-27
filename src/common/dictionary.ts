@@ -107,6 +107,7 @@ const dictionary: NestedObject = {
     addToCalendar: {
       addToCalendar: "Add to Calendar",
       selectCalendar: "Select Calendar",
+      addNewCalendar: "Add new calendar",
     },
     invitation: {
       invitations: "Invitations",
@@ -262,6 +263,7 @@ const dictionary: NestedObject = {
     addToCalendar: {
       addToCalendar: "Zum Kalender hinzufügen",
       selectCalendar: "Kalender auswählen",
+      addNewCalendar: "Neuen Kalender hinzufügen",
     },
     invitation: {
       invitations: "Einladungen",

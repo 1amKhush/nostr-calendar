@@ -7,19 +7,15 @@ import {
   Button,
   Box,
   Typography,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
   IconButton,
   useMediaQuery,
   useTheme,
 } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
-import CircleIcon from "@mui/icons-material/Circle";
 import { useCalendarLists } from "../stores/calendarLists";
 import type { ICalendarEvent } from "../utils/types";
 import { TimeRenderer } from "./TimeRenderer";
+import { CalendarListSelect } from "./CalendarListSelect";
 import { useIntl } from "react-intl";
 
 interface AddToCalendarDialogProps {
@@ -84,23 +80,10 @@ export function AddToCalendarDialog({
           </Box>
 
           {/* Calendar selector */}
-          <FormControl fullWidth size="small">
-            <InputLabel>{intl.formatMessage({ id: "addToCalendar.selectCalendar" })}</InputLabel>
-            <Select
-              value={selectedCalendarId}
-              label={intl.formatMessage({ id: "addToCalendar.selectCalendar" })}
-              onChange={(e) => setSelectedCalendarId(e.target.value)}
-            >
-              {calendars.map((cal) => (
-                <MenuItem key={cal.id} value={cal.id}>
-                  <Box display="flex" alignItems="center" gap={1}>
-                    <CircleIcon sx={{ fontSize: 12, color: cal.color }} />
-                    {cal.title}
-                  </Box>
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
+          <CalendarListSelect
+            value={selectedCalendarId}
+            onChange={setSelectedCalendarId}
+          />
         </Box>
       </DialogContent>
 
