@@ -102,7 +102,7 @@ const dictionary: NestedObject = {
       removeFromCalendarDescription:
         "The event will still exist for other participants",
       ignoreInvitation: "Ignore invitation",
-      ignoreInvitationDescription: "No action will be taken",
+      ignoreInvitationDescription: "Coming soon",
       confirm: "Confirm",
       deleting: "Deleting...",
     },
@@ -259,8 +259,7 @@ const dictionary: NestedObject = {
         "Termin nicht gefunden. Er wurde möglicherweise noch nicht geladen.",
       loadError:
         "Der Termin konnte nicht geladen werden. Es kann sich um einen vorübergehenden Fehler handeln. Bitte aktualisieren Sie die Seite, um es erneut zu versuchen",
-      notAuthorized:
-        "Sie sind nicht berechtigt, diesen Termin zu bearbeiten.",
+      notAuthorized: "Sie sind nicht berechtigt, diesen Termin zu bearbeiten.",
       notInCalendar:
         "Dieser Termin ist in keinem Ihrer Kalender. Sie erhalten keine Benachrichtigungen für diesen Termin. Fügen Sie ihn zu Ihrem Kalender hinzu, um Benachrichtigungen zu erhalten.",
     },
@@ -273,7 +272,7 @@ const dictionary: NestedObject = {
       removeFromCalendarDescription:
         "Der Termin bleibt für andere Teilnehmer bestehen",
       ignoreInvitation: "Einladung ignorieren",
-      ignoreInvitationDescription: "Es wird keine Aktion durchgeführt",
+      ignoreInvitationDescription: "Demnächst verfügbar",
       confirm: "Bestätigen",
       deleting: "Löschen...",
     },

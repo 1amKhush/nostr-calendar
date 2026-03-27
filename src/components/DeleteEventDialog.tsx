@@ -197,6 +197,7 @@ export function DeleteEventDialog({
 
             <FormControlLabel
               value="ignore"
+              disabled
               control={<Radio />}
               label={
                 <Box>
