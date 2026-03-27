@@ -284,20 +284,25 @@ function ActionButtons({
     navigate(editLink);
   };
 
+  const iconSize = isMobile ? "small" : "medium";
+
   return (
-    <Box minWidth={isMobile ? "inherit" : "160px"}>
+    <Box
+      minWidth={isMobile ? "inherit" : "160px"}
+      sx={{ whiteSpace: "nowrap" }}
+    >
       {!isMobile && (
         <>
-          <IconButton onClick={copyLinkToEvent}>
+          <IconButton size={iconSize} onClick={copyLinkToEvent}>
             <Tooltip title={intl.formatMessage({ id: "event.copyLink" })}>
-              <ContentCopy />
+              <ContentCopy fontSize={iconSize} />
             </Tooltip>
           </IconButton>
 
           {showOpenInNew && (
-            <IconButton component={Link} href={linkToEvent}>
+            <IconButton size={iconSize} component={Link} href={linkToEvent}>
               <Tooltip title={intl.formatMessage({ id: "event.openNewTab" })}>
-                <OpenInNew />
+                <OpenInNew fontSize={iconSize} />
               </Tooltip>
             </IconButton>
           )}
@@ -305,22 +310,22 @@ function ActionButtons({
       )}
 
       {!isNative && (
-        <IconButton onClick={() => exportICS(event)}>
+        <IconButton size={iconSize} onClick={() => exportICS(event)}>
           <Tooltip title={intl.formatMessage({ id: "event.downloadDetails" })}>
-            <Download />
+            <Download fontSize={iconSize} />
           </Tooltip>
         </IconButton>
       )}
       {isEditable && (
-        <IconButton onClick={editEvent}>
+        <IconButton size={iconSize} onClick={editEvent}>
           <Tooltip title={intl.formatMessage({ id: "event.editEvent" })}>
-            <Edit />
+            <Edit fontSize={iconSize} />
           </Tooltip>
         </IconButton>
       )}
-      <IconButton onClick={() => setDeleteDialogOpen(true)}>
+      <IconButton size={iconSize} onClick={() => setDeleteDialogOpen(true)}>
         <Tooltip title={intl.formatMessage({ id: "event.deleteEvent" })}>
-          <Delete />
+          <Delete fontSize={iconSize} />
         </Tooltip>
       </IconButton>
       <DeleteEventDialog
@@ -333,10 +338,11 @@ function ActionButtons({
       />
       {showClose && (
         <IconButton
+          size={iconSize}
           aria-label={intl.formatMessage({ id: "navigation.close" })}
           onClick={closeModal}
         >
-          <CloseIcon />
+          <CloseIcon fontSize={iconSize} />
         </IconButton>
       )}
     </Box>
@@ -481,8 +487,8 @@ function InvitationAcceptBar({ event }: { event: ICalendarEvent }) {
       <Typography variant="body2" color="text.secondary">
         {intl.formatMessage({ id: "event.notInCalendar" })}
       </Typography>
-      <Box display="flex" alignItems="center" gap={1}>
-        <Box maxWidth={500}>
+      <Box display="flex" alignItems="center" gap={1} flexWrap="wrap">
+        <Box maxWidth={500} flex={1} minWidth={150}>
           <CalendarListSelect
             value={selectedCalendarId}
             onChange={setSelectedCalendarId}
