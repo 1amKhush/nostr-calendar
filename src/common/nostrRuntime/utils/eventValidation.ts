@@ -1,4 +1,5 @@
 import { Event } from "nostr-tools";
+import { EventKinds } from "../../EventConfigs";
 
 /**
  * Check if an event is a replaceable event (kind 0, 3, 10000-19999, 30000-39999)
@@ -59,6 +60,13 @@ export function shouldReplaceEvent(eventA: Event, eventB: Event): boolean {
  */
 export function isDeletionEvent(kind: number): boolean {
   return kind === 5;
+}
+
+/**
+ * Check if an event is a participant removal event (kind 84)
+ */
+export function isParticipantRemovalEvent(kind: number): boolean {
+  return kind === EventKinds.ParticipantRemoval;
 }
 
 /**

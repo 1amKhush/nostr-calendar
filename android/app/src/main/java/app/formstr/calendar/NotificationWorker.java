@@ -90,7 +90,7 @@ public class NotificationWorker extends Worker {
 
             long begin = event.getLong("begin");
             long end = event.getLong("end");
-            String eventId = event.getString("eventId");
+            String eventId = event.getString("id");
             String title = event.getString("title");
 
             // Build location string from location array

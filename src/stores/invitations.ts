@@ -24,6 +24,7 @@ import {
   fetchCalendarGiftWraps,
   fetchPrivateCalendarEvents,
   getUserPublicKey,
+  publishParticipantRemovalEvent,
   viewPrivateEvent,
 } from "../common/nostr";
 import { nostrEventToCalendar } from "../utils/parser";
@@ -166,6 +167,7 @@ export const useInvitations = create<InvitationsState>((set, get) => ({
 
         // Create the invitation entry
         const invitation: IInvitation = {
+          originalInvitationId: rumor.originalInvitationId,
           giftWrapId: rumor.eventId, // Using eventId as identifier
           eventId: rumor.eventId,
           viewKey: rumor.viewKey,
@@ -229,11 +231,19 @@ export const useInvitations = create<InvitationsState>((set, get) => ({
    */
   dismissInvitation: (giftWrapId) => {
     set((state) => {
-      const updated = state.invitations.map((i) =>
-        i.giftWrapId === giftWrapId
-          ? { ...i, status: "dismissed" as const }
-          : i,
+      const updated = state.invitations.filter(
+        (i) => i.giftWrapId !== giftWrapId,
       );
+      const dismissedInvitation = state.invitations.find(
+        (inv) => inv.giftWrapId === giftWrapId,
+      );
+      if (dismissedInvitation) {
+        publishParticipantRemovalEvent({
+          kinds: [EventKinds.CalendarEventGiftWrap],
+          eventIds: [dismissedInvitation?.originalInvitationId],
+        });
+      }
+
       const unreadCount = updated.filter((i) => i.status === "pending").length;
       saveInvitationsToStorage(updated);
       return { invitations: updated, unreadCount };

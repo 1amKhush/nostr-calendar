@@ -18,6 +18,9 @@ export enum EventKinds {
   // Deletion (NIP-09)
   DeletionEvent = 5,
 
+  // Participant Removal (kind 84 - participant opts out of an event)
+  ParticipantRemoval = 84,
+
   // Relay List (NIP-65)
   RelayList = 10002,
 }

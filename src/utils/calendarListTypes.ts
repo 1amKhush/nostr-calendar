@@ -52,6 +52,7 @@ export interface ICalendarList {
  * accept them to add the event to one of their calendars.
  */
 export interface IInvitation {
+  originalInvitationId: string;
   /** kind of Invitation */
   kind: number;
   /** Event author's pubkey */

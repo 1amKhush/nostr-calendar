@@ -11,7 +11,7 @@ export const NotificationEventPage = () => {
   const { eventId } = useParams<{ eventId: string }>();
   const navigate = useNavigate();
   const events = useTimeBasedEvents((s) => s.events);
-  const event = events.find((e) => e.eventId === eventId);
+  const event = events.find((e) => e.id === eventId);
 
   return (
     <>
@@ -22,12 +22,16 @@ export const NotificationEventPage = () => {
           <IconButton onClick={() => navigate(-1)}>
             <ArrowBack />
           </IconButton>
-          <Typography variant="h5">{event?.title ?? intl.formatMessage({ id: "event.event" })}</Typography>
+          <Typography variant="h5">
+            {event?.title ?? intl.formatMessage({ id: "event.event" })}
+          </Typography>
         </Box>
         {event ? (
           <CalendarEvent event={event} />
         ) : (
-          <Typography>{intl.formatMessage({ id: "event.eventNotFound" })}</Typography>
+          <Typography>
+            {intl.formatMessage({ id: "event.eventNotFound" })}
+          </Typography>
         )}
       </Box>
     </>

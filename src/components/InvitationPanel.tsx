@@ -9,7 +9,7 @@
  * and dashed border styling. Users can accept (add to calendar) or dismiss.
  */
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Box,
   Typography,
@@ -26,14 +26,30 @@ import { AddToCalendarDialog } from "./AddToCalendarDialog";
 import { TimeRenderer } from "./TimeRenderer";
 import type { ICalendarEvent } from "../utils/types";
 import { useIntl } from "react-intl";
+import { useCalendarLists } from "../stores/calendarLists";
 
 export function InvitationPanel() {
   const intl = useIntl();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const navigate = useNavigate();
-  const { invitations, acceptInvitation, dismissInvitation } = useInvitations();
+  const { invitations, acceptInvitation, dismissInvitation, fetchInvitations } =
+    useInvitations();
+  const {
+    calendars,
+    isLoaded: calendarsLoaded,
+    fetchCalendars,
+  } = useCalendarLists();
 
+  useEffect(() => {
+    fetchCalendars();
+  }, []);
+
+  useEffect(() => {
+    if (calendarsLoaded) {
+      fetchInvitations();
+    }
+  }, [calendarsLoaded, calendars]);
   const [addDialogEvent, setAddDialogEvent] = useState<ICalendarEvent | null>(
     null,
   );

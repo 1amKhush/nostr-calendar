@@ -398,6 +398,7 @@ export const fetchCalendarGiftWraps = (
     viewKey: string;
     authorPubkey: string;
     kind: number;
+    originalInvitationId: string;
   }) => void,
   onEose: () => void,
 ) => {
@@ -415,7 +416,7 @@ export const fetchCalendarGiftWraps = (
     onEvent: async (event: Event) => {
       try {
         const unWrappedEvent = await getDetailsFromGiftWrap(event);
-        onEvent(unWrappedEvent);
+        onEvent({ ...unWrappedEvent, originalInvitationId: event.id });
       } catch (error) {
         console.error("Failed to unwrap gift wrap:", error);
       }
@@ -701,6 +702,53 @@ export async function publishDeletionEvent({
     pubkey: userPublicKey,
     created_at: Math.floor(Date.now() / 1000),
     kind: EventKinds.DeletionEvent,
+    content: reason,
+    tags,
+  };
+
+  const signer = await signerManager.getSigner();
+  const signedEvent = await signer.signEvent(unsignedEvent);
+  signedEvent.id = getEventHash(unsignedEvent);
+
+  await publishToRelays(signedEvent);
+  nostrRuntime.addEvent(signedEvent);
+
+  return signedEvent;
+}
+
+/**
+ * Publishes a kind 84 participant removal event to signal the user
+ * wants to opt out of an event they were invited to.
+ * Same tag structure as a deletion event.
+ */
+export async function publishParticipantRemovalEvent({
+  kinds,
+  coordinates = [],
+  eventIds = [],
+  reason = "",
+}: {
+  kinds: number[];
+  coordinates?: string[];
+  eventIds?: string[];
+  reason?: string;
+}) {
+  const userPublicKey = await getUserPublicKey();
+  const tags: string[][] = [];
+
+  for (const id of eventIds) {
+    tags.push(["e", id]);
+  }
+  for (const coord of coordinates) {
+    tags.push(["a", coord]);
+  }
+  for (const kind of kinds) {
+    tags.push(["k", kind.toString()]);
+  }
+
+  const unsignedEvent: UnsignedEvent = {
+    pubkey: userPublicKey,
+    created_at: Math.floor(Date.now() / 1000),
+    kind: EventKinds.ParticipantRemoval,
     content: reason,
     tags,
   };

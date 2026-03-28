@@ -19,8 +19,13 @@ import CloseIcon from "@mui/icons-material/Close";
 import { useCalendarLists } from "../stores/calendarLists";
 import { useTimeBasedEvents } from "../stores/events";
 import { useUser } from "../stores/user";
-import { publishDeletionEvent } from "../common/nostr";
+import {
+  publishDeletionEvent,
+  publishParticipantRemovalEvent,
+} from "../common/nostr";
+import { useInvitations } from "../stores/invitations";
 import type { ICalendarEvent } from "../utils/types";
+import { EventKinds } from "../common/EventConfigs";
 import { TimeRenderer } from "./TimeRenderer";
 import { useIntl } from "react-intl";
 
@@ -43,6 +48,7 @@ export function DeleteEventDialog({
   const { user } = useUser();
   const { calendars, removeEventFromCalendar } = useCalendarLists();
   const { removeEvent } = useTimeBasedEvents();
+  const { dismissInvitation } = useInvitations();
   const [loading, setLoading] = useState(false);
 
   const isAuthor = event.user === user?.pubkey;
@@ -55,9 +61,8 @@ export function DeleteEventDialog({
     return "ignore";
   };
 
-  const [selectedOption, setSelectedOption] = useState<DeleteOption>(
-    getDefaultOption,
-  );
+  const [selectedOption, setSelectedOption] =
+    useState<DeleteOption>(getDefaultOption);
 
   const findEventRef = (): string[] | null => {
     if (!event.calendarId) return null;
@@ -96,9 +101,16 @@ export function DeleteEventDialog({
           }
           break;
         }
-        case "ignore":
-          // No-op
+        case "ignore": {
+          await publishParticipantRemovalEvent({
+            coordinates: [eventCoordinate],
+            eventIds: event.eventId ? [event.eventId] : [],
+            kinds: [event.kind, EventKinds.CalendarEventGiftWrap],
+          });
+          dismissInvitation(event.id);
+          removeEvent(event.id);
           break;
+        }
       }
       onClose();
     } catch (error) {
@@ -149,9 +161,7 @@ export function DeleteEventDialog({
           {/* Options */}
           <RadioGroup
             value={selectedOption}
-            onChange={(e) =>
-              setSelectedOption(e.target.value as DeleteOption)
-            }
+            onChange={(e) => setSelectedOption(e.target.value as DeleteOption)}
           >
             {isAuthor && (
               <FormControlLabel
@@ -197,7 +207,6 @@ export function DeleteEventDialog({
 
             <FormControlLabel
               value="ignore"
-              disabled
               control={<Radio />}
               label={
                 <Box>

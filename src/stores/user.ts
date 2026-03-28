@@ -78,6 +78,10 @@ const onUserChange = async () => {
       // Fetch deletion events first so the EventStore knows which events
       // to reject before calendar list events arrive.
       await nostrRuntime.fetchDeletionEvents(userRelays, cachedUser.pubkey);
+      await nostrRuntime.fetchParticipantRemovalEvents(
+        userRelays,
+        cachedUser.pubkey,
+      );
       // Initialize calendar lists and invitations for the new user
       useCalendarLists.getState().loadCachedCalendars();
       useInvitations.getState().loadCachedInvitations();

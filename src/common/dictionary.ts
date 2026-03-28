@@ -102,7 +102,8 @@ const dictionary: NestedObject = {
       removeFromCalendarDescription:
         "The event will still exist for other participants",
       ignoreInvitation: "Ignore invitation",
-      ignoreInvitationDescription: "Coming soon",
+      ignoreInvitationDescription:
+        "Publish a removal event to opt out as a participant",
       confirm: "Confirm",
       deleting: "Deleting...",
     },
@@ -273,7 +274,8 @@ const dictionary: NestedObject = {
       removeFromCalendarDescription:
         "Der Termin bleibt für andere Teilnehmer bestehen",
       ignoreInvitation: "Einladung ignorieren",
-      ignoreInvitationDescription: "Demnächst verfügbar",
+      ignoreInvitationDescription:
+        "Ein Entfernungs-Event veröffentlichen, um als Teilnehmer auszutreten",
       confirm: "Bestätigen",
       deleting: "Löschen...",
     },

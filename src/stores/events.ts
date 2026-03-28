@@ -161,7 +161,7 @@ export const useTimeBasedEvents = create<{
     daysAfter?: number;
   }) => void;
   updateEvent: (event: ICalendarEvent) => void;
-  removeEvent: (eventId: string) => void;
+  removeEvent: (id: string) => void;
   resetPrivateEvents: () => void;
   getTimeRangeConfig: () => { daysBefore: number; daysAfter: number };
   updateTimeRangeConfig: (config: {
@@ -184,15 +184,15 @@ export const useTimeBasedEvents = create<{
       };
     });
     // Cancel old notifications and reschedule with updated event data
-    cancelEventNotifications(updatedEvent.eventId).then(() => {
+    cancelEventNotifications(updatedEvent.id).then(() => {
       scheduleEventNotifications(updatedEvent);
     });
   },
-  removeEvent: (eventId) => {
+  removeEvent: (id) => {
     set(({ events }) => {
       let store = normalize(events);
-      if (store.allKeys.includes(eventId)) {
-        store = removeOne(store, eventId);
+      if (store.allKeys.includes(id)) {
+        store = removeOne(store, id);
       }
       const updatedEvents = denormalize(store);
       saveEventsToStorage(updatedEvents);
@@ -201,6 +201,7 @@ export const useTimeBasedEvents = create<{
         events: updatedEvents,
       };
     });
+    cancelEventNotifications(id);
   },
   resetPrivateEvents: () => {
     set(({ events }) => {
