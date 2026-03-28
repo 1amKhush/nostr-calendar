@@ -109,6 +109,8 @@ function Application() {
   useEffect(() => {
     if (user && calendarsLoaded && calendars.length === 0) {
       setShowOnboardingDialog(true);
+    } else {
+      setShowOnboardingDialog(false);
     }
   }, [user, calendarsLoaded, calendars.length]);
 

@@ -87,12 +87,10 @@ export const useInvitations = create<InvitationsState>((set, get) => ({
    * 3. Adds it as a pending invitation
    */
   fetchInvitations: async () => {
-    if (invitationSubHandle) {
-      invitationSubHandle.unsubscribe();
-    }
-
     const userPubkey = await getUserPublicKey();
     if (!userPubkey) return;
+
+    let invitationsCheckedCount = 0;
 
     // Get all event IDs already in calendars for deduplication
     const existingEventIds = new Set(
@@ -103,9 +101,16 @@ export const useInvitations = create<InvitationsState>((set, get) => ({
     const processedIds = new Set<string>();
     const invitations: IInvitation[] = [];
 
+    const checkForReceivedInvitations = () =>
+      setTimeout(onInvitationsFetched, 4000);
+
     function onInvitationEventsFetched() {
       set((state) => {
-        const updated = [...state.invitations, ...invitations];
+        const newEventIds = new Set(invitations.map((i) => i.eventId));
+        const updated = [
+          ...state.invitations.filter((i) => !newEventIds.has(i.eventId)),
+          ...invitations,
+        ];
         const unreadCount = updated.filter(
           (i) => i.status === "pending",
         ).length;
@@ -118,6 +123,10 @@ export const useInvitations = create<InvitationsState>((set, get) => ({
       const kinds = new Set<number>();
       const pubkeys = new Set<string>();
       const eventIds = new Set<string>();
+      invitationsCheckedCount++;
+      if (invitationsCheckedCount > 2) {
+        return;
+      }
       invitations.forEach((inv) => {
         if ([EventKinds.PrivateCalendarEvent].includes(inv.kind)) {
           kinds.add(inv.kind);
@@ -125,6 +134,7 @@ export const useInvitations = create<InvitationsState>((set, get) => ({
           eventIds.add(inv.eventId);
         }
       });
+
       fetchPrivateCalendarEvents(
         {
           eventIds: Array.from(eventIds),
@@ -146,6 +156,7 @@ export const useInvitations = create<InvitationsState>((set, get) => ({
         },
         onInvitationEventsFetched,
       );
+      checkForReceivedInvitations();
     }
 
     invitationSubHandle = fetchCalendarGiftWraps(
