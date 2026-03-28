@@ -47,8 +47,6 @@ const _onAcceptedRelays = console.log.bind(
   "Successfully published to relay: ",
 );
 
-export const pool = new SimplePool();
-
 export const getRelays = (): string[] => {
   const userRelays = useRelayStore.getState().relays;
   return userRelays.length > 0 ? userRelays : defaultRelays;
