@@ -12,6 +12,7 @@ import {
   useMediaQuery,
   useTheme,
 } from "@mui/material";
+import RefreshIcon from "@mui/icons-material/Refresh";
 import CloseIcon from "@mui/icons-material/Close";
 import CircleIcon from "@mui/icons-material/Circle";
 import type { ICalendarList } from "../utils/calendarListTypes";
@@ -38,6 +39,8 @@ interface CalendarManageDialogProps {
   onDelete?: () => void;
   /** When true, the dialog cannot be dismissed — used for onboarding when no calendars exist. */
   blocking?: boolean;
+  /** Called when the user wants to retry fetching calendars (shown in blocking/onboarding mode). */
+  onRefetch?: () => void;
 }
 
 export function CalendarManageDialog({
@@ -47,6 +50,7 @@ export function CalendarManageDialog({
   onSave,
   onDelete,
   blocking = false,
+  onRefetch,
 }: CalendarManageDialogProps) {
   const [title, setTitle] = useState(calendar?.title || "");
   const [description, setDescription] = useState(calendar?.description || "");
@@ -89,11 +93,26 @@ export function CalendarManageDialog({
       <DialogContent dividers>
         <Box display="flex" flexDirection="column" gap={3}>
           {blocking && (
-            <Typography variant="body2" color="text.secondary">
-              {intl.formatMessage({
-                id: "calendarManage.onboardingExplanation",
-              })}
-            </Typography>
+            <>
+              <Typography variant="body2" color="text.secondary">
+                {intl.formatMessage({
+                  id: "calendarManage.onboardingExplanation",
+                })}
+              </Typography>
+              {onRefetch && (
+                <Button
+                  startIcon={<RefreshIcon />}
+                  onClick={onRefetch}
+                  variant="outlined"
+                  size="small"
+                  sx={{ alignSelf: "flex-start" }}
+                >
+                  {intl.formatMessage({
+                    id: "calendarManage.refetchCalendars",
+                  })}
+                </Button>
+              )}
+            </>
           )}
           <TextField
             fullWidth

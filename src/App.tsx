@@ -59,6 +59,7 @@ function Application() {
     calendars,
     isLoaded: calendarsLoaded,
     createCalendar,
+    fetchCalendars,
   } = useCalendarLists();
   const [showOnboardingDialog, setShowOnboardingDialog] = useState(false);
 
@@ -173,6 +174,7 @@ function Application() {
           open={showOnboardingDialog}
           onClose={() => setShowOnboardingDialog(false)}
           onSave={handleOnboardingSave}
+          onRefetch={fetchCalendars}
           blocking
         />
       )}
