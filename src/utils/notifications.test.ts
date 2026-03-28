@@ -176,15 +176,15 @@ describe("scheduleEventNotifications", () => {
     expect(mockSchedule).not.toHaveBeenCalled();
   });
 
-  it("includes eventId and notificationKey in notification extras", async () => {
+  it("includes id and notificationKey in notification extras", async () => {
     const futureStart = Date.now() + HOUR;
-    const event = makeEvent({ begin: futureStart, eventId: "my-event" });
+    const event = makeEvent({ begin: futureStart, id: "my-event-id" });
 
     await scheduleEventNotifications(event);
 
     const scheduled = mockSchedule.mock.calls[0][0].notifications;
-    expect(scheduled[0].extra.eventId).toBe("my-event");
-    expect(scheduled[0].extra.notificationKey).toBe("my-event");
+    expect(scheduled[0].extra.eventId).toBe("my-event-id");
+    expect(scheduled[0].extra.notificationKey).toBe("my-event-id");
   });
 });
 
@@ -202,7 +202,7 @@ describe("scheduleEventNotifications – recurring events", () => {
     const startTime = Date.now() + HOUR - 10 * DAY;
     const event = makeEvent({
       begin: startTime,
-      eventId: "daily-evt",
+      id: "daily-evt",
       repeat: { rrule: "FREQ=DAILY" },
     });
 
@@ -225,7 +225,7 @@ describe("scheduleEventNotifications – recurring events", () => {
     const startDate = now - 3 * DAY;
     const event = makeEvent({
       begin: startDate,
-      eventId: "weekly-far",
+      id: "weekly-far",
       repeat: { rrule: "FREQ=WEEKLY" },
     });
 
@@ -239,7 +239,7 @@ describe("scheduleEventNotifications – recurring events", () => {
     const oneWeekAgo = Date.now() - 7 * DAY + HOUR; // +1h so it's in the future
     const event = makeEvent({
       begin: oneWeekAgo,
-      eventId: "weekly-soon",
+      id: "weekly-soon",
       repeat: { rrule: "FREQ=WEEKLY" },
     });
 
@@ -252,7 +252,7 @@ describe("scheduleEventNotifications – recurring events", () => {
     const startTime = Date.now() + HOUR - 10 * DAY;
     const event = makeEvent({
       begin: startTime,
-      eventId: "daily-dedup",
+      id: "daily-dedup",
       repeat: { rrule: "FREQ=DAILY" },
     });
 
@@ -267,12 +267,12 @@ describe("scheduleEventNotifications – recurring events", () => {
     const startTime = Date.now() + HOUR - 10 * DAY;
     const event1 = makeEvent({
       begin: startTime,
-      eventId: "evt-a",
+      id: "evt-a",
       repeat: { rrule: "FREQ=DAILY" },
     });
     const event2 = makeEvent({
       begin: startTime,
-      eventId: "evt-b",
+      id: "evt-b",
       repeat: { rrule: "FREQ=DAILY" },
     });
 
@@ -296,7 +296,7 @@ describe("scheduleEventNotifications – recurring events", () => {
     const startTime = Date.now() + HOUR - 10 * DAY;
     const event = makeEvent({
       begin: startTime,
-      eventId: "recurring-key-test",
+      id: "recurring-key-test",
       repeat: { rrule: "FREQ=DAILY" },
     });
 
@@ -345,7 +345,7 @@ describe("cancelEventNotifications", () => {
   it("cancels notifications matching the event ID", async () => {
     // First schedule a notification
     const futureStart = Date.now() + HOUR;
-    const event = makeEvent({ begin: futureStart, eventId: "cancel-me" });
+    const event = makeEvent({ begin: futureStart, id: "cancel-me" });
     await scheduleEventNotifications(event);
 
     // Now set up getPending to return those notifications
@@ -361,7 +361,7 @@ describe("cancelEventNotifications", () => {
 
   it("allows rescheduling after cancellation", async () => {
     const futureStart = Date.now() + HOUR;
-    const event = makeEvent({ begin: futureStart, eventId: "reschedule-me" });
+    const event = makeEvent({ begin: futureStart, id: "reschedule-me" });
 
     await scheduleEventNotifications(event);
     expect(mockSchedule).toHaveBeenCalledTimes(1);

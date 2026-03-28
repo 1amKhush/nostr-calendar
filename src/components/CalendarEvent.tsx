@@ -2,6 +2,7 @@
 import {
   alpha,
   Box,
+  Button,
   Dialog,
   DialogContent,
   DialogTitle,
@@ -27,10 +28,19 @@ import CloseIcon from "@mui/icons-material/Close";
 import ContentCopy from "@mui/icons-material/ContentCopy";
 import OpenInNew from "@mui/icons-material/OpenInNew";
 import Download from "@mui/icons-material/Download";
+import Edit from "@mui/icons-material/Edit";
+import Delete from "@mui/icons-material/Delete";
 import { exportICS, isMobile } from "../common/utils";
 import { encodeNAddr } from "../common/nostr";
-import { getEventPage } from "../utils/routingHelper";
+import { getEditEventPage, getEventPage } from "../utils/routingHelper";
+import { useNavigate } from "react-router";
 import { isNative } from "../utils/platform";
+import { useCalendarLists } from "../stores/calendarLists";
+import { useIntl } from "react-intl";
+import { useUser } from "../stores/user";
+import { DeleteEventDialog } from "./DeleteEventDialog";
+import { CalendarListSelect } from "./CalendarListSelect";
+import { useInvitations } from "../stores/invitations";
 
 interface CalendarEventCardProps {
   event: PositionedEvent;
@@ -39,20 +49,51 @@ interface CalendarEventCardProps {
 
 export interface CalendarEventViewProps {
   event: ICalendarEvent;
+  display?: "modal" | "page";
+  open?: boolean;
+  onClose?: () => void;
 }
 
-function getColorScheme(event: ICalendarEvent, theme: Theme) {
+/**
+ * Returns color scheme for an event card based on its type:
+ * - Invitation events: grey background with dashed border
+ * - Private events with a calendar: themed by the calendar's color
+ * - Other private events: default dark theme
+ * - Public events: semi-transparent primary
+ */
+function getColorScheme(
+  event: ICalendarEvent,
+  theme: Theme,
+  calendarColor?: string,
+) {
+  // Invitation events get a distinct grey/dashed style
+  if (event.isInvitation) {
+    return {
+      color: theme.palette.text.secondary,
+      backgroundColor: "#e0e0e0",
+      border: "2px dashed #999",
+    };
+  }
+
+  // Private events themed by their calendar's color
+  if (event.isPrivateEvent && calendarColor) {
+    return {
+      color: "#fff",
+      backgroundColor: alpha(calendarColor, 0.7),
+    };
+  }
+
   if (event.isPrivateEvent) {
     return {
       color: "#fff",
       backgroundColor: theme.palette.primary.light,
     };
-  } else {
-    return {
-      backgroundColor: alpha(theme.palette.primary.main, 0.3),
-      color: "#fff",
-    };
   }
+
+  return {
+    backgroundColor: alpha(theme.palette.primary.main, 0.3),
+    color: "#fff",
+  };
 }
 
 export function CalendarEventCard({
@@ -64,8 +105,13 @@ export function CalendarEventCard({
   const handleClose = () => setOpen(false);
   const maxDescLength = 20;
   const theme = useTheme();
-  const colorScheme = getColorScheme(event, theme);
-  const fullScreen = useMediaQuery(theme.breakpoints.down("sm"));
+
+  // Look up the calendar for this event
+  const calendars = useCalendarLists.getState().calendars;
+  const calendar = event.calendarId
+    ? calendars.find((c) => c.id === event.calendarId)
+    : undefined;
+  const colorScheme = getColorScheme(event, theme, calendar?.color);
   const title =
     event.title ??
     (event.description.length > maxDescLength
@@ -81,6 +127,7 @@ export function CalendarEventCard({
         sx={{
           position: "absolute",
           backgroundColor: colorScheme.backgroundColor,
+          border: colorScheme.border,
           top: `calc(${event.top}px + ${offset})`,
           left: `${(event.col / event.colSpan) * 100}%`,
           width: `${100 / event.colSpan}%`,
@@ -100,53 +147,118 @@ export function CalendarEventCard({
           {title}
         </Typography>
       </Paper>
-      <Dialog
-        fullWidth
-        maxWidth="lg"
-        fullScreen={fullScreen}
-        slotProps={{
-          paper: {
-            sx: {
-              height: {
-                sm: "100vh",
-                md: "60vh",
-              },
-            },
-          },
-        }}
+      <CalendarEventView
+        event={event}
+        display="modal"
         open={open}
         onClose={handleClose}
-      >
-        <DialogTitle
-          sx={{
-            display: "flex",
-            justifyContent: "space-between",
-          }}
-        >
-          <Typography component={"p"} variant="h5">
-            {title}
-          </Typography>
-          <ActionButtons event={event} closeModal={handleClose} />
-        </DialogTitle>
-        <DialogContent dividers>
-          <CalendarEvent event={event}></CalendarEvent>
-        </DialogContent>
-      </Dialog>
+      />
     </>
+  );
+}
+
+export function CalendarEventView({
+  event,
+  display = "modal",
+  open = false,
+  onClose,
+}: CalendarEventViewProps) {
+  const theme = useTheme();
+  const fullScreen = useMediaQuery(theme.breakpoints.down("sm"));
+  const maxDescLength = 20;
+  const title =
+    event.title ??
+    (event.description.length > maxDescLength
+      ? `${event.description.substring(0, maxDescLength)}...`
+      : event.description);
+
+  const handleClose = () => onClose?.();
+
+  const titleBar = (
+    <Box
+      sx={{
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center",
+        width: "100%",
+      }}
+    >
+      <Typography component={"p"} variant="h5">
+        {title}
+      </Typography>
+      <ActionButtons
+        event={event}
+        closeModal={handleClose}
+        showClose={display === "modal"}
+        showOpenInNew={display !== "page"}
+      />
+    </Box>
+  );
+
+  if (display === "page") {
+    return (
+      <Box
+        sx={{
+          maxWidth: 1200,
+          margin: "0 auto",
+          padding: 3,
+        }}
+      >
+        <Box sx={{ marginBottom: 2 }}>{titleBar}</Box>
+        <CalendarEvent event={event} />
+      </Box>
+    );
+  }
+
+  return (
+    <Dialog
+      fullWidth
+      maxWidth="lg"
+      fullScreen={fullScreen}
+      slotProps={{
+        paper: {
+          sx: {
+            height: {
+              sm: "100vh",
+              md: "60vh",
+            },
+          },
+        },
+      }}
+      open={open}
+      onClose={handleClose}
+    >
+      <DialogTitle
+        sx={{
+          display: "flex",
+          justifyContent: "space-between",
+        }}
+      >
+        {titleBar}
+      </DialogTitle>
+      <DialogContent dividers>
+        <CalendarEvent event={event} />
+      </DialogContent>
+    </Dialog>
   );
 }
 
 function ActionButtons({
   event,
   closeModal,
+  showClose = true,
+  showOpenInNew = true,
 }: {
   event: ICalendarEvent;
   closeModal: () => void;
+  showClose?: boolean;
+  showOpenInNew?: boolean;
 }) {
+  const intl = useIntl();
   const linkToEvent = getEventPage(
     encodeNAddr({
       pubkey: event.user,
-      identifier: event.eventId,
+      identifier: event.id,
       kind: event.kind,
     }),
     event.viewKey,
@@ -154,42 +266,98 @@ function ActionButtons({
   const copyLinkToEvent = () => {
     navigator.clipboard.writeText(`${window.location.origin}${linkToEvent}`);
   };
+  const { user } = useUser();
+  const navigate = useNavigate();
+  const isEditable = event.user === user?.pubkey;
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+
+  const editEvent = () => {
+    const editLink = getEditEventPage(
+      encodeNAddr({
+        pubkey: event.user,
+        identifier: event.id,
+        kind: event.kind,
+      }),
+      event.viewKey,
+    );
+    closeModal();
+    navigate(editLink);
+  };
+
+  const iconSize = isMobile ? "small" : "medium";
+
   return (
-    <Box minWidth={isMobile ? "inherit" : "160px"}>
+    <Box
+      minWidth={isMobile ? "inherit" : "160px"}
+      sx={{ whiteSpace: "nowrap" }}
+    >
       {!isMobile && (
         <>
-          <IconButton onClick={copyLinkToEvent}>
-            <Tooltip title="Copy link to this event">
-              <ContentCopy />
+          <IconButton size={iconSize} onClick={copyLinkToEvent}>
+            <Tooltip title={intl.formatMessage({ id: "event.copyLink" })}>
+              <ContentCopy fontSize={iconSize} />
             </Tooltip>
           </IconButton>
 
-          <IconButton component={Link} href={linkToEvent}>
-            <Tooltip title="Open event in new tab">
-              <OpenInNew />
-            </Tooltip>
-          </IconButton>
+          {showOpenInNew && (
+            <IconButton size={iconSize} component={Link} href={linkToEvent}>
+              <Tooltip title={intl.formatMessage({ id: "event.openNewTab" })}>
+                <OpenInNew fontSize={iconSize} />
+              </Tooltip>
+            </IconButton>
+          )}
         </>
       )}
 
       {!isNative && (
-        <IconButton onClick={() => exportICS(event)}>
-          <Tooltip title="Download event details">
-            <Download />
+        <IconButton size={iconSize} onClick={() => exportICS(event)}>
+          <Tooltip title={intl.formatMessage({ id: "event.downloadDetails" })}>
+            <Download fontSize={iconSize} />
           </Tooltip>
         </IconButton>
       )}
-      <IconButton aria-label="close" onClick={closeModal}>
-        <CloseIcon />
+      {isEditable && (
+        <IconButton size={iconSize} onClick={editEvent}>
+          <Tooltip title={intl.formatMessage({ id: "event.editEvent" })}>
+            <Edit fontSize={iconSize} />
+          </Tooltip>
+        </IconButton>
+      )}
+      <IconButton size={iconSize} onClick={() => setDeleteDialogOpen(true)}>
+        <Tooltip title={intl.formatMessage({ id: "event.deleteEvent" })}>
+          <Delete fontSize={iconSize} />
+        </Tooltip>
       </IconButton>
+      <DeleteEventDialog
+        open={deleteDialogOpen}
+        onClose={() => {
+          setDeleteDialogOpen(false);
+          closeModal();
+        }}
+        event={event}
+      />
+      {showClose && (
+        <IconButton
+          size={iconSize}
+          aria-label={intl.formatMessage({ id: "navigation.close" })}
+          onClick={closeModal}
+        >
+          <CloseIcon fontSize={iconSize} />
+        </IconButton>
+      )}
     </Box>
   );
 }
 
 export function CalendarEvent({ event }: CalendarEventViewProps) {
+  const intl = useIntl();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const locations = event.location.filter((location) => !!location?.trim?.());
+  const calendars = useCalendarLists.getState().calendars;
+  const calendar = event.calendarId
+    ? calendars.find((c) => c.id === event.calendarId)
+    : undefined;
   return (
     <Box
       sx={{
@@ -226,7 +394,9 @@ export function CalendarEvent({ event }: CalendarEventViewProps) {
 
           {event.description && (
             <>
-              <Typography variant="subtitle1">Description</Typography>
+              <Typography variant="subtitle1">
+                {intl.formatMessage({ id: "navigation.description" })}
+              </Typography>
               <Typography variant="body2">
                 <Markdown remarkPlugins={[remarkGfm]}>
                   {event.description}
@@ -239,7 +409,9 @@ export function CalendarEvent({ event }: CalendarEventViewProps) {
 
           {locations.length > 0 && (
             <>
-              <Typography variant="subtitle1">Location</Typography>
+              <Typography variant="subtitle1">
+                {intl.formatMessage({ id: "navigation.location" })}
+              </Typography>
               <Typography>{locations.join(", ")}</Typography>
 
               <Divider />
@@ -248,7 +420,7 @@ export function CalendarEvent({ event }: CalendarEventViewProps) {
 
           <Box display={"flex"} flexWrap={"wrap"} gap={1}>
             <Typography width={"100%"} fontWeight={600}>
-              Participants
+              {intl.formatMessage({ id: "navigation.participants" })}
             </Typography>
             <Stack direction="row" gap={0.5} flexWrap="wrap">
               {event.participants.map((p) => (
@@ -258,8 +430,81 @@ export function CalendarEvent({ event }: CalendarEventViewProps) {
               ))}
             </Stack>
           </Box>
+
+          {calendar ? (
+            <>
+              <Divider />
+              <Box display="flex" alignItems="center" gap={1}>
+                <Box
+                  sx={{
+                    width: 12,
+                    height: 12,
+                    borderRadius: "50%",
+                    backgroundColor: calendar.color,
+                    flexShrink: 0,
+                  }}
+                />
+                <Typography variant="body2">{calendar.title}</Typography>
+              </Box>
+            </>
+          ) : (
+            <>
+              <Divider />
+              <InvitationAcceptBar event={event} />
+            </>
+          )}
         </Stack>
       </Box>
     </Box>
+  );
+}
+
+function InvitationAcceptBar({ event }: { event: ICalendarEvent }) {
+  const intl = useIntl();
+  const { calendars } = useCalendarLists();
+  const { acceptInvitation } = useInvitations();
+  const [selectedCalendarId, setSelectedCalendarId] = useState(
+    calendars[0]?.id || "",
+  );
+  const [accepting, setAccepting] = useState(false);
+
+  const handleAccept = async () => {
+    if (!selectedCalendarId) return;
+    setAccepting(true);
+    await acceptInvitation(event.id, selectedCalendarId);
+    setAccepting(false);
+  };
+
+  return (
+    <Stack
+      spacing={1.5}
+      sx={{
+        backgroundColor: "action.hover",
+        borderRadius: 1,
+        p: 1.5,
+      }}
+    >
+      <Typography variant="body2" color="text.secondary">
+        {intl.formatMessage({ id: "event.notInCalendar" })}
+      </Typography>
+      <Box display="flex" alignItems="center" gap={1} flexWrap="wrap">
+        <Box maxWidth={500} flex={1} minWidth={150}>
+          <CalendarListSelect
+            value={selectedCalendarId}
+            onChange={setSelectedCalendarId}
+            size="small"
+          />
+        </Box>
+        <Button
+          variant="contained"
+          size="small"
+          disabled={!selectedCalendarId || accepting}
+          onClick={handleAccept}
+          sx={{ flexShrink: 0, whiteSpace: "nowrap" }}
+        >
+          {intl.formatMessage({ id: "invitation.acceptInvitation" })}
+        </Button>
+      </Box>
+    </Stack>
   );
 }

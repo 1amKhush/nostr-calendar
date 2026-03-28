@@ -3,8 +3,11 @@ import { setItem } from "../common/localStorage";
 import { signerManager } from "../common/signer";
 import { useTimeBasedEvents } from "./events";
 import { cancelAllNotifications } from "../utils/notifications";
-import { fetchRelayList } from "../common/nostr";
+import { defaultRelays, fetchRelayList } from "../common/nostr";
 import { useRelayStore } from "./relays";
+import { useCalendarLists } from "./calendarLists";
+import { useInvitations } from "./invitations";
+import { nostrRuntime } from "../common/nostrRuntime";
 
 export interface IUser {
   name?: string;
@@ -45,6 +48,8 @@ export const useUser = create<{
     cancelAllNotifications();
     useRelayStore.getState().resetRelays();
     await useTimeBasedEvents.getState().clearCachedEvents();
+    await useCalendarLists.getState().clearCachedCalendars();
+    await useInvitations.getState().clearCachedInvitations();
     set({ user: null });
     localStorage.removeItem(USER_STORAGE_KEY);
   },
@@ -63,20 +68,28 @@ const onUserChange = async () => {
   const cachedUser = signerManager.getUser();
 
   if (cachedUser) {
-    useUser.setState({
-      isInitialized: true,
-      user: cachedUser,
-    });
     if (currentUser?.pubkey !== cachedUser.pubkey) {
       const eventManager = useTimeBasedEvents.getState();
       eventManager.resetPrivateEvents();
       // Fetch user's relay list (NIP-65)
-      fetchRelayList(cachedUser.pubkey).then((relays) => {
-        if (relays.length > 0) {
-          useRelayStore.getState().setRelays(relays);
-        }
-      });
+      const relays = await fetchRelayList(cachedUser.pubkey);
+      const userRelays = relays.length > 0 ? relays : defaultRelays;
+      useRelayStore.getState().setRelays(userRelays);
+      // Fetch deletion events first so the EventStore knows which events
+      // to reject before calendar list events arrive.
+      await nostrRuntime.fetchDeletionEvents(userRelays, cachedUser.pubkey);
+      await nostrRuntime.fetchParticipantRemovalEvents(
+        userRelays,
+        cachedUser.pubkey,
+      );
+      // Initialize calendar lists and invitations for the new user
+      useCalendarLists.getState().loadCachedCalendars();
+      useInvitations.getState().loadCachedInvitations();
     }
+    useUser.setState({
+      isInitialized: true,
+      user: cachedUser,
+    });
   } else {
     useUser.setState({
       isInitialized: true,

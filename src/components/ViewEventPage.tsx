@@ -5,18 +5,9 @@ import type { ICalendarEvent } from "../utils/types";
 import { fetchCalendarEvent, viewPrivateEvent } from "../common/nostr";
 import { nostrEventToCalendar } from "../utils/parser";
 import { Header } from "./Header";
-import { enUS } from "date-fns/locale/en-US";
-import {
-  Alert,
-  Box,
-  CircularProgress,
-  Toolbar,
-  Typography,
-} from "@mui/material";
-import { TimeRenderer } from "./TimeRenderer";
-import { Participant } from "./Participant";
-import Markdown from "react-markdown";
-import remarkGfm from "remark-gfm";
+import { Alert, Box, CircularProgress, Toolbar } from "@mui/material";
+import { CalendarEventView } from "./CalendarEvent";
+import { useIntl } from "react-intl";
 
 interface ILoadState {
   event: ICalendarEvent | null;
@@ -30,50 +21,8 @@ const getInitialLoadState = (): ILoadState => ({
   error: null,
 });
 
-const EventRenderer = ({
-  calendarEvent,
-}: {
-  calendarEvent: ICalendarEvent;
-}) => {
-  return (
-    <Box style={{ width: "100%", display: "flex", justifyContent: "center" }}>
-      <Box
-        style={{ maxWidth: "1000px", display: "flex", flexDirection: "column" }}
-      >
-        <Box style={{ display: "flex", justifyContent: "space-between" }}>
-          <Box style={{ display: "flex", flexDirection: "column" }}>
-            <Typography variant="h5">{calendarEvent.title || ""}</Typography>
-            <TimeRenderer
-              begin={calendarEvent.begin}
-              end={calendarEvent.end}
-              locale={enUS}
-              repeat={calendarEvent.repeat}
-            />
-            <Typography variant="subtitle1">
-              {calendarEvent?.participants.map((pubKey) => (
-                <Participant pubKey={pubKey} key={pubKey} />
-              ))}
-            </Typography>
-          </Box>
-          <Box>
-            <Typography variant="subtitle1">
-              <img src={calendarEvent.image} />
-            </Typography>
-          </Box>
-        </Box>
-        <Box>
-          <Typography variant="body2" component="div">
-            <Markdown remarkPlugins={[remarkGfm]}>
-              {calendarEvent.description}
-            </Markdown>
-          </Typography>
-        </Box>
-      </Box>
-    </Box>
-  );
-};
-
 const ErrorRenderer = () => {
+  const intl = useIntl();
   return (
     <Box
       style={{
@@ -84,8 +33,7 @@ const ErrorRenderer = () => {
       }}
     >
       <Alert severity="error">
-        We could not load the event. It may be a temporary error. Please refresh
-        the page to try again
+        {intl.formatMessage({ id: "event.loadError" })}
       </Alert>
     </Box>
   );
@@ -159,7 +107,10 @@ export const ViewEventPage = () => {
         ) : null}
         {calendarEventLoadState.error !== null ? <ErrorRenderer /> : null}
         {calendarEventLoadState.event !== null ? (
-          <EventRenderer calendarEvent={calendarEventLoadState.event} />
+          <CalendarEventView
+            event={calendarEventLoadState.event}
+            display="page"
+          />
         ) : null}
       </Box>
     </>

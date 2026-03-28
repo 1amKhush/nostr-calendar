@@ -2,7 +2,6 @@ import {
   Event,
   generateSecretKey,
   Relay,
-  SimplePool,
   UnsignedEvent,
   nip44,
   getPublicKey,
@@ -28,6 +27,10 @@ import { RSVPStatus } from "../utils/types";
 import { EventKinds } from "./EventConfigs";
 import { nostrRuntime } from "./nostrRuntime";
 import { useRelayStore } from "../stores/relays";
+import { useCalendarLists } from "../stores/calendarLists";
+import { buildEventRef } from "../utils/calendarListTypes";
+import { sha256 } from "@noble/hashes/sha2.js";
+import { bytesToHex, utf8ToBytes } from "@noble/hashes/utils";
 
 export const defaultRelays = [
   "wss://relay.damus.io/",
@@ -36,7 +39,6 @@ export const defaultRelays = [
   "wss://relay.nostr.wirednet.jp/",
   "wss://nostr-01.yakihonne.com",
   "wss://relay.snort.social",
-  "wss://relay.nostr.band",
   "wss://nostr21.com",
 ];
 
@@ -80,9 +82,7 @@ export async function publishPrivateRSVPEvent({
   authorpubKey: string;
   status: string;
   participants: string[];
-  referenceKind:
-    | EventKinds.PrivateCalendarEvent
-    | EventKinds.PrivateCalendarRecurringEvent;
+  referenceKind: EventKinds.PrivateCalendarEvent;
 }) {
   const uniqueRSVPId = uuid();
   const userPublicKey = await getUserPublicKey();
@@ -196,43 +196,51 @@ export const fetchPublicRSVPEvents = (
     ...(eventReference && { "#a": [eventReference] }),
   };
 
-  return pool.subscribeMany(relayList, [filter], {
-    onevent: (event: Event) => {
+  return nostrRuntime.subscribe(relayList, [filter], {
+    onEvent: (event: Event) => {
       onEvent(event);
     },
   });
 };
 
-export async function publishPrivateCalendarEvent({
-  title,
-  description,
-  begin: start,
-  end,
-  participants,
-  repeat,
-  image,
-  location,
-}: ICalendarEvent) {
-  const viewSecretKey = generateSecretKey();
-  const uniqueCalId = uuid();
-  const eventKind = repeat.rrule
-    ? EventKinds.PrivateCalendarRecurringEvent
-    : EventKinds.PrivateCalendarEvent;
-  const eventData = [
-    ["title", title],
-    ["description", description],
-    ["start", start / 1000],
-    ["end", end / 1000],
-    ["image", image],
-    ["d", uniqueCalId],
-    ["location", location],
+/**
+ * Publishes a private calendar event and sends gift-wrap invitations to participants.
+ *
+ * Flow:
+ * 1. Generate a view secret key for encrypting the event content
+ * 2. Encrypt event data with NIP-44 using the view key
+ * 3. Sign and publish the encrypted event to relays
+ * 4. Create gift-wrap invitations (NIP-59) for each participant
+ * 5. Add the event reference to the user's selected calendar list
+ *
+ * The calendarId parameter specifies which calendar to add the event to.
+ * The event reference includes the viewKey so it can be decrypted later
+ * when loading events from the calendar list.
+ */
+async function preparePrivateCalendarEvent(
+  event: ICalendarEvent,
+  dTag: string,
+  viewSecretKey: Uint8Array,
+) {
+  const eventKind = EventKinds.PrivateCalendarEvent;
+  const eventData: (string | number)[][] = [
+    ["title", event.title],
+    ["description", event.description],
+    ["start", event.begin / 1000],
+    ["end", event.end / 1000],
+    ["image", event.image ?? ""],
+    ["d", dTag],
   ];
-  if (repeat && repeat.rrule) {
+  if (event.repeat?.rrule) {
     eventData.push(["L", "rrule"]);
-    eventData.push(["l", repeat.rrule]);
+    eventData.push(["l", event.repeat.rrule]);
   }
 
-  participants.forEach((participant) => {
+  event.location.forEach((loc) => {
+    eventData.push(["location", loc]);
+  });
+
+  event.participants.forEach((participant) => {
     eventData.push(["p", participant]);
   });
 
@@ -244,24 +252,46 @@ export async function publishPrivateCalendarEvent({
   );
 
   const unsignedCalendarEvent: UnsignedEvent = {
-    pubkey: userPublicKey, // Your public key here
+    pubkey: userPublicKey,
     created_at: Math.floor(Date.now() / 1000),
     kind: eventKind,
     content: eventContent,
-    tags: [
-      ["d", uniqueCalId], // Replace with a unique id for the event
-    ],
+    tags: [["d", dTag]],
   };
   const signer = await signerManager.getSigner();
   const signedEvent = await signer.signEvent(unsignedCalendarEvent);
   const evtId = getEventHash(unsignedCalendarEvent);
   signedEvent.id = evtId;
-  // Publish the private event to a relay
+
+  return {
+    signedEvent,
+    viewSecretKey,
+    eventKind,
+    dTag,
+    userPublicKey,
+  };
+}
+
+export async function publishPrivateCalendarEvent(
+  event: ICalendarEvent,
+  calendarId: string,
+) {
+  const viewSecretKey = generateSecretKey();
+  const dTagRoot = `${JSON.stringify(event)}-${Date.now()}`;
+  const dTag = bytesToHex(sha256(utf8ToBytes(dTagRoot))).substring(0, 30);
+  const { signedEvent, eventKind, userPublicKey } =
+    await preparePrivateCalendarEvent(event, dTag, viewSecretKey);
+
   await publishToRelays(signedEvent);
+
+  // Gift-wrap the event keys to each participant (including the creator).
+  // These serve as invitations — recipients will see them as notifications
+  // and can accept them into their own calendars.
   const giftWraps: Event[] = [];
-  const targetPubKeys = Array.from(new Set([userPublicKey, ...participants]));
+  const targetPubKeys = Array.from(
+    new Set([userPublicKey, ...event.participants]),
+  );
   for (const participant of targetPubKeys) {
-    // Create a rumor
     const giftWrap = await nip59.wrapEvent(
       {
         pubkey: userPublicKey,
@@ -269,7 +299,7 @@ export async function publishPrivateCalendarEvent({
         kind: EventKinds.CalendarEventRumor,
         content: "",
         tags: [
-          ["a", `${eventKind}:${participant}:${uniqueCalId}`],
+          ["a", `${eventKind}:${participant}:${dTag}`],
           ["viewKey", nip19.nsecEncode(viewSecretKey)],
         ],
       },
@@ -283,9 +313,50 @@ export async function publishPrivateCalendarEvent({
       return publishToRelays(gift);
     }),
   );
+
+  // Add the event reference to the creator's calendar list.
+  // The ref includes the viewKey so the event can be decrypted when
+  // loading events from the calendar list later.
+  const eventRef = buildEventRef({
+    kind: eventKind,
+    authorPubkey: userPublicKey,
+    eventDTag: dTag,
+    viewKey: nip19.nsecEncode(viewSecretKey),
+  });
+  await useCalendarLists.getState().addEventToCalendar(calendarId, eventRef);
+
   return {
     calendarEvent: signedEvent,
     giftWraps,
+  };
+}
+
+export async function editPrivateCalendarEvent(
+  event: ICalendarEvent,
+  calendarId: string,
+) {
+  const dTag = event.id;
+  const viewSecretKey = nip19.decode(event.viewKey as NSec).data;
+  const { signedEvent, eventKind, userPublicKey } =
+    await preparePrivateCalendarEvent(event, dTag, viewSecretKey);
+
+  await publishToRelays(signedEvent);
+
+  const eventCoordinate = `${eventKind}:${userPublicKey}:${dTag}`;
+  const eventRef = buildEventRef({
+    kind: eventKind,
+    authorPubkey: userPublicKey,
+    eventDTag: dTag,
+    viewKey: nip19.nsecEncode(viewSecretKey),
+  });
+
+  await useCalendarLists
+    .getState()
+    .moveEventToCalendar(calendarId, eventCoordinate, eventRef);
+
+  return {
+    event,
+    calendarId,
   };
 }
 
@@ -297,6 +368,8 @@ export async function getDetailsFromGiftWrap(giftWrap: Event) {
     throw new Error("invalid rumor. a tag not found");
   }
   const eventId = aTag[1].split(":")[2]; // Extract event id from the tag
+  const authorPubkey = aTag[1].split(":")[1]; // Extract author pubkey from the tag
+  const kind = Number(aTag[1].split(":")[0]); // Extract kind from the tag
   const viewKey = rumor.tags.find((tag) => tag[0] === "viewKey")?.[1];
   if (!viewKey) {
     throw new Error("invalid rumor: viewKey not found");
@@ -304,16 +377,32 @@ export async function getDetailsFromGiftWrap(giftWrap: Event) {
   return {
     eventId,
     viewKey,
+    authorPubkey,
+    kind,
   };
 }
 
+/**
+ * Fetches gift-wrapped calendar event invitations via nostrRuntime.
+ * Each gift wrap contains an encrypted rumor with the event ID and view key.
+ *
+ * @param limit - Maximum number of gift wraps to fetch (for "last N" queries)
+ */
 export const fetchCalendarGiftWraps = (
   {
     participants,
     since,
     until,
-  }: { participants: string[]; since?: number; until?: number },
-  onEvent: (event: { eventId: string; viewKey: string }) => void,
+    limit,
+  }: { participants: string[]; since?: number; until?: number; limit?: number },
+  onEvent: (event: {
+    eventId: string;
+    viewKey: string;
+    authorPubkey: string;
+    kind: number;
+    originalInvitationId: string;
+  }) => void,
+  onEose: () => void,
 ) => {
   const relayList = getRelays();
   const filter: Filter = {
@@ -321,13 +410,20 @@ export const fetchCalendarGiftWraps = (
     "#p": participants,
     ...(since && { since }),
     ...(until && { until }),
+    ...(limit && { limit }),
   };
 
-  return pool.subscribeMany(relayList, [filter], {
-    onevent: async (event: Event) => {
-      const unWrappedEvent = await getDetailsFromGiftWrap(event);
-      onEvent(unWrappedEvent);
+  // Use nostrRuntime for subscription management and deduplication
+  return nostrRuntime.subscribe(relayList, [filter], {
+    onEvent: async (event: Event) => {
+      try {
+        const unWrappedEvent = await getDetailsFromGiftWrap(event);
+        onEvent({ ...unWrappedEvent, originalInvitationId: event.id });
+      } catch (error) {
+        console.error("Failed to unwrap gift wrap:", error);
+      }
     },
+    onEose,
   });
 };
 
@@ -355,8 +451,8 @@ export async function getDetailsFromRSVPGiftWrap(giftWrap: Event) {
   };
 
   return new Promise((resolve, reject) => {
-    const closer = pool.subscribeMany(relayList, [filter], {
-      onevent: async (rsvpEvent: Event) => {
+    const handle = nostrRuntime.subscribe(relayList, [filter], {
+      onEvent: async (rsvpEvent: Event) => {
         try {
           const viewPrivateKey = nip19.decode(viewKey as NSec).data;
           const decryptedContent = nip44.decrypt(
@@ -368,7 +464,7 @@ export async function getDetailsFromRSVPGiftWrap(giftWrap: Event) {
           );
           const eventData = JSON.parse(decryptedContent);
 
-          closer.close();
+          handle.unsubscribe();
           resolve({
             rsvpEvent: {
               ...rsvpEvent,
@@ -380,7 +476,7 @@ export async function getDetailsFromRSVPGiftWrap(giftWrap: Event) {
             isPrivate: true,
           });
         } catch (error: unknown) {
-          closer.close();
+          handle.unsubscribe();
           reject(
             new Error(
               `Failed to process RSVP event: ${(error as Error).message}`,
@@ -388,8 +484,8 @@ export async function getDetailsFromRSVPGiftWrap(giftWrap: Event) {
           );
         }
       },
-      oneose: () => {
-        closer.close();
+      onEose: () => {
+        handle.unsubscribe();
         // If no RSVP event is found, return tentative status
         resolve({
           rsvpEvent: null,
@@ -397,13 +493,13 @@ export async function getDetailsFromRSVPGiftWrap(giftWrap: Event) {
           viewKey,
           aTag: aTag[1],
           isPrivate: viewKey ? true : false,
-          status: RSVPStatus.tentative, // Default status when no RSVP is present
+          status: RSVPStatus.tentative,
         });
       },
     });
 
     setTimeout(() => {
-      closer.close();
+      handle.unsubscribe();
       reject(new Error("Timeout: RSVP event fetch timed out"));
     }, 10000);
   });
@@ -419,8 +515,8 @@ export const fetchAndDecryptPrivateRSVPEvents = (
     "#p": participants,
   };
 
-  return pool.subscribeMany(relayList, [filter], {
-    onevent: async (giftWrap: Event) => {
+  return nostrRuntime.subscribe(relayList, [filter], {
+    onEvent: async (giftWrap: Event) => {
       try {
         const decryptedRSVP = await getDetailsFromRSVPGiftWrap(giftWrap);
         onEvent(decryptedRSVP);
@@ -444,31 +540,41 @@ export function viewPrivateEvent(calendarEvent: Event, viewKey: string) {
   }; // Return the decrypted event details
 }
 
-export async function fetchPrivateCalendarEvents(
+/**
+ * Fetches private calendar events by their d-tag IDs via nostrRuntime.
+ * Subscribes to both regular and recurring event kinds.
+ */
+export function fetchPrivateCalendarEvents(
   {
     eventIds,
+    authors,
+    kinds,
     since,
     until,
-  }: { eventIds: string[]; since?: number; until?: number },
+  }: {
+    kinds: number[];
+    eventIds: string[];
+    authors?: string[];
+    since?: number;
+    until?: number;
+  },
   onEvent: (event: Event) => void,
+  onEose?: () => void,
 ) {
   const relayList = getRelays();
   const filter: Filter = {
-    kinds: [EventKinds.PrivateCalendarEvent],
+    kinds: kinds,
     "#d": eventIds,
+    ...(authors && authors.length > 0 && { authors }),
     ...(since && { since }),
     ...(until && { until }),
   };
-  const recurringFilter: Filter = {
-    kinds: [EventKinds.PrivateCalendarRecurringEvent],
-    "#d": eventIds,
-  };
 
-  const closer = pool.subscribeMany(relayList, [filter, recurringFilter], {
-    onevent: async (event: Event) => {
+  return nostrRuntime.subscribe(relayList, [filter], {
+    onEvent: (event: Event) => {
       onEvent(event);
-      closer.close();
     },
+    onEose,
   });
 }
 
@@ -516,8 +622,8 @@ export const fetchCalendarEvents = (
     ...(until && { until }),
   };
 
-  return pool.subscribeMany(relayList, [filter], {
-    onevent: (event: Event) => {
+  return nostrRuntime.subscribe(relayList, [filter], {
+    onEvent: (event: Event) => {
       onEvent(event);
     },
   });
@@ -563,35 +669,120 @@ export const publishPublicCalendarEvent = async (
   return publishToRelays(fullEvent, onAcceptedRelays);
 };
 
+/**
+ * Publishes a NIP-09 deletion event (kind 5) to request deletion of events.
+ *
+ * @param coordinates - Array of "a" tag coordinates ("{kind}:{pubkey}:{d-tag}") for replaceable events
+ * @param eventIds - Array of event IDs for non-replaceable events
+ * @param reason - Optional human-readable reason for deletion
+ */
+export async function publishDeletionEvent({
+  kinds,
+  coordinates = [],
+  eventIds = [],
+  reason = "",
+}: {
+  kinds: number[];
+  coordinates?: string[];
+  eventIds?: string[];
+  reason?: string;
+}) {
+  const userPublicKey = await getUserPublicKey();
+  const tags: string[][] = [];
+
+  for (const id of eventIds) {
+    tags.push(["e", id]);
+  }
+  for (const coord of coordinates) {
+    tags.push(["a", coord]);
+  }
+  for (const kind of kinds) {
+    tags.push(["k", kind.toString()]);
+  }
+
+  const unsignedEvent: UnsignedEvent = {
+    pubkey: userPublicKey,
+    created_at: Math.floor(Date.now() / 1000),
+    kind: EventKinds.DeletionEvent,
+    content: reason,
+    tags,
+  };
+
+  const signer = await signerManager.getSigner();
+  const signedEvent = await signer.signEvent(unsignedEvent);
+  signedEvent.id = getEventHash(unsignedEvent);
+
+  await publishToRelays(signedEvent);
+  nostrRuntime.addEvent(signedEvent);
+
+  return signedEvent;
+}
+
+/**
+ * Publishes a kind 84 participant removal event to signal the user
+ * wants to opt out of an event they were invited to.
+ * Same tag structure as a deletion event.
+ */
+export async function publishParticipantRemovalEvent({
+  kinds,
+  coordinates = [],
+  eventIds = [],
+  reason = "",
+}: {
+  kinds: number[];
+  coordinates?: string[];
+  eventIds?: string[];
+  reason?: string;
+}) {
+  const userPublicKey = await getUserPublicKey();
+  const tags: string[][] = [];
+
+  for (const id of eventIds) {
+    tags.push(["e", id]);
+  }
+  for (const coord of coordinates) {
+    tags.push(["a", coord]);
+  }
+  for (const kind of kinds) {
+    tags.push(["k", kind.toString()]);
+  }
+
+  const unsignedEvent: UnsignedEvent = {
+    pubkey: userPublicKey,
+    created_at: Math.floor(Date.now() / 1000),
+    kind: EventKinds.ParticipantRemoval,
+    content: reason,
+    tags,
+  };
+
+  const signer = await signerManager.getSigner();
+  const signedEvent = await signer.signEvent(unsignedEvent);
+  signedEvent.id = getEventHash(unsignedEvent);
+
+  await publishToRelays(signedEvent);
+  nostrRuntime.addEvent(signedEvent);
+
+  return signedEvent;
+}
+
 export const encodeNAddr = (address: Omit<AddressPointer, "relays">) => {
   return naddrEncode({ ...address, relays: defaultRelays });
 };
 
-export const fetchCalendarEvent = (naddr: NAddr): Promise<Event> => {
+export const fetchCalendarEvent = async (naddr: NAddr): Promise<Event> => {
   const { data } = decode(naddr as NAddr);
-  console.log(data);
-  return new Promise((resolve, reject) => {
-    const relays = data.relays ?? defaultRelays;
-    const filter: Filter = {
-      ids: [data.identifier],
-      kinds: [data.kind],
-      authors: [data.pubkey],
-    };
+  const relays = data.relays ?? defaultRelays;
+  const filter: Filter = {
+    "#d": [data.identifier],
+    kinds: [data.kind],
+    authors: [data.pubkey],
+  };
 
-    const maxWait = 10000;
-
-    const closer = pool.subscribeMany(relays, [filter], {
-      maxWait,
-      onevent: (event: Event) => {
-        resolve(event);
-        closer.close();
-      },
-    });
-    setTimeout(() => {
-      reject(new Error("EVENT_NOT_FOUND"));
-      closer.close();
-    }, maxWait);
-  });
+  const event = await nostrRuntime.fetchOne(relays, filter);
+  if (!event) {
+    throw new Error("EVENT_NOT_FOUND");
+  }
+  return event;
 };
 
 export const fetchUserProfile = async (

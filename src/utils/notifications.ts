@@ -46,12 +46,12 @@ function hashToNumber(str: string): number {
  * For repeating events, it includes the occurrence start time.
  */
 function buildNotificationKey(
-  eventId: string,
+  id: string,
   occurrenceStart: number,
   isRepeating: boolean,
 ): string {
-  if (!isRepeating) return eventId;
-  return `${eventId}:${occurrenceStart}`;
+  if (!isRepeating) return id;
+  return `${id}:${occurrenceStart}`;
 }
 
 export async function scheduleEventNotifications(
@@ -82,7 +82,7 @@ export async function scheduleEventNotifications(
   }
 
   const notificationKey = buildNotificationKey(
-    event.eventId,
+    event.id,
     occurrenceStart,
     isRepeating,
   );
@@ -114,7 +114,7 @@ export async function scheduleEventNotifications(
       title: `Upcoming: ${event.title}`,
       body: `Starts in 10 minutes${locationSuffix}`,
       schedule: { at: new Date(tenMinBefore), allowWhileIdle: true },
-      extra: { eventId: event.eventId, notificationKey },
+      extra: { eventId: event.id, notificationKey },
     });
   }
 
@@ -124,7 +124,7 @@ export async function scheduleEventNotifications(
       title: event.title,
       body: `Starting now${locationSuffix}`,
       schedule: { at: new Date(occurrenceStart), allowWhileIdle: true },
-      extra: { eventId: event.eventId, notificationKey },
+      extra: { eventId: event.id, notificationKey },
     });
   }
 
@@ -137,7 +137,7 @@ export async function scheduleEventNotifications(
     await LocalNotifications.schedule({ notifications });
     scheduledNotificationKeys.add(notificationKey);
     console.log(
-      `Scheduled notifications for ${event.eventId} (occurrence: ${new Date(occurrenceStart).toISOString()})`,
+      `Scheduled notifications for ${event.id} (occurrence: ${new Date(occurrenceStart).toISOString()})`,
     );
   } catch (err) {
     console.warn("Failed to schedule notification", err);

@@ -7,6 +7,7 @@ import {
   RuntimeStats,
   SubscriptionDebugInfo,
 } from "./types";
+import { EventKinds } from "../EventConfigs";
 
 /**
  * NostrRuntime - Centralized Nostr subscription and event storage
@@ -339,6 +340,42 @@ export class NostrRuntime {
       return this.eventStore.pruneOldEvents(maxAgeDays);
     },
   };
+
+  /**
+   * Fetches all kind 5 deletion events authored by the given pubkey
+   * and feeds them into the EventStore so that subsequently received
+   * events matching those deletions are rejected.
+   *
+   * Call this once at app init after login.
+   */
+  async fetchDeletionEvents(
+    relays: string[],
+    userPubkey: string,
+  ): Promise<void> {
+    const filter: Filter = {
+      kinds: [5],
+      authors: [userPubkey],
+    };
+    await this.querySync(relays, filter);
+  }
+
+  /**
+   * Fetches all kind 84 participant removal events authored by the given pubkey
+   * and feeds them into the EventStore so that subsequently received
+   * events matching those removals are rejected.
+   *
+   * Call this once at app init after login.
+   */
+  async fetchParticipantRemovalEvents(
+    relays: string[],
+    userPubkey: string,
+  ): Promise<void> {
+    const filter: Filter = {
+      kinds: [EventKinds.ParticipantRemoval],
+      authors: [userPubkey],
+    };
+    await this.querySync(relays, filter);
+  }
 
   /**
    * Cleanup - close all subscriptions and clear store

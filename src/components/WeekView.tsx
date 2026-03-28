@@ -76,7 +76,8 @@ export function WeekView({ events, date }: ViewProps) {
     <DndContext>
       <Box display="flex" height={24 * 60}>
         {/* Time column */}
-        <Box width={60}>
+        <Box width={60} position={"relative"}>
+          <TimeMarker />
           {Array.from({ length: 24 }).map((_, h) => (
             <Box key={h} height={60} px={0.5}>
               <Typography variant="caption">{h}:00</Typography>
@@ -112,7 +113,7 @@ export function WeekView({ events, date }: ViewProps) {
               >
                 {/* Day header */}
 
-                <TimeMarker />
+                {day.isSame(dayjs(), "day") && <TimeMarker />}
                 {Array.from({ length: 24 }).map((_, h) => (
                   <Box
                     onClick={handleCellClick}

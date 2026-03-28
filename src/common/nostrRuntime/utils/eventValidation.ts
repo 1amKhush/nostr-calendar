@@ -1,4 +1,5 @@
 import { Event } from "nostr-tools";
+import { EventKinds } from "../../EventConfigs";
 
 /**
  * Check if an event is a replaceable event (kind 0, 3, 10000-19999, 30000-39999)
@@ -52,6 +53,36 @@ export function shouldReplaceEvent(eventA: Event, eventB: Event): boolean {
 
   // If timestamps are equal, use ID as tiebreaker (lexicographically larger)
   return eventA.id > eventB.id;
+}
+
+/**
+ * Check if an event is a deletion event (NIP-09, kind 5)
+ */
+export function isDeletionEvent(kind: number): boolean {
+  return kind === 5;
+}
+
+/**
+ * Check if an event is a participant removal event (kind 84)
+ */
+export function isParticipantRemovalEvent(kind: number): boolean {
+  return kind === EventKinds.ParticipantRemoval;
+}
+
+/**
+ * Get the coordinate string for a replaceable event: "{kind}:{pubkey}:{d-tag}"
+ * Returns null for non-replaceable events.
+ */
+export function getEventCoordinate(event: Event): string | null {
+  if (!isReplaceableEvent(event.kind)) return null;
+  // For parameterized replaceable events (30000-39999), include d-tag
+  if (event.kind >= 30000 && event.kind < 40000) {
+    const dTag = event.tags.find((tag) => tag[0] === "d");
+    const dValue = dTag?.[1] || "";
+    return `${event.kind}:${event.pubkey}:${dValue}`;
+  }
+  // For regular replaceable events
+  return `${event.kind}:${event.pubkey}`;
 }
 
 /**

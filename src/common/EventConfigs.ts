@@ -1,6 +1,5 @@
 export enum EventKinds {
   PrivateCalendarEvent = 32678,
-  PrivateCalendarRecurringEvent = 32679,
   CalendarEventGiftWrap = 1052,
   CalendarEventRumor = 52,
   PrivateRSVPEvent = 32069,
@@ -12,6 +11,15 @@ export enum EventKinds {
 
   // User Profile
   UserProfile = 0,
+
+  // Calendar List (custom kind for private calendar collections)
+  PrivateCalendarList = 32123,
+
+  // Deletion (NIP-09)
+  DeletionEvent = 5,
+
+  // Participant Removal (kind 84 - participant opts out of an event)
+  ParticipantRemoval = 84,
 
   // Relay List (NIP-65)
   RelayList = 10002,

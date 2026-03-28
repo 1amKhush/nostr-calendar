@@ -5,6 +5,9 @@ import {
   getReplaceableKey,
   shouldReplaceEvent,
   isValidEventStructure,
+  isDeletionEvent,
+  isParticipantRemovalEvent,
+  getEventCoordinate,
 } from "./utils/eventValidation";
 import { eventMatchesFilter, extractTagKeys } from "./utils/filterUtils";
 import { EventCallback } from "./types";
@@ -36,13 +39,21 @@ export class EventStore {
   // Replaceable event tracking
   private replaceableKeys: Map<string, string> = new Map(); // key -> event ID
 
+  // Deletion tracking (NIP-09)
+  private deletedEventIds: Set<string> = new Set();
+  private deletedCoordinates: Set<string> = new Set();
+
+  // Participant removal tracking (kind 84)
+  private ignoredEventIds: Set<string> = new Set();
+  private ignoredCoordinates: Set<string> = new Set();
+
   // Reactive subscriptions
   private listeners: Map<string, Set<EventCallback>> = new Map();
   private listenerIdCounter = 0;
 
   /**
    * Add an event to the store
-   * Returns true if event was added, false if rejected/duplicate
+   * Returns true if event was added, false if rejected
    */
   addEvent(event: Event): boolean {
     // Validate event structure
@@ -58,6 +69,28 @@ export class EventStore {
       return false;
     }
 
+    // Handle deletion events (NIP-09, kind 5)
+    if (isDeletionEvent(event.kind)) {
+      this.processDeletionEvent(event);
+      return true;
+    }
+
+    // Handle participant removal events (kind 84)
+    if (isParticipantRemovalEvent(event.kind)) {
+      this.processParticipantRemovalEvent(event);
+      return true;
+    }
+
+    // Reject events that have been deleted
+    if (this.isDeleted(event)) {
+      return false;
+    }
+
+    // Reject events that have been ignored
+    if (this.isEventIgnored(event)) {
+      return false;
+    }
+
     // Handle replaceable events
     if (isReplaceableEvent(event.kind)) {
       const replaceableKey = getReplaceableKey(event);
@@ -66,8 +99,8 @@ export class EventStore {
       if (existingEventId) {
         const existingEvent = this.eventsById.get(existingEventId);
         if (existingEvent && !shouldReplaceEvent(event, existingEvent)) {
-          // Existing event is newer, don't add
-          return false;
+          // Existing event is newer, don't add but return true
+          return true;
         }
 
         // Remove old event
@@ -288,6 +321,94 @@ export class EventStore {
   }
 
   /**
+   * Process a kind 5 deletion event (NIP-09).
+   * Extracts referenced event IDs ("e" tags) and coordinates ("a" tags),
+   * adds them to the deleted sets, and removes matching events from the store.
+   * Only honors deletions from the same author as the deleted event.
+   */
+  private processDeletionEvent(deletionEvent: Event): void {
+    for (const tag of deletionEvent.tags) {
+      if (tag[0] === "e" && tag[1]) {
+        // Check that the deleted event was authored by the same pubkey
+        const existing = this.eventsById.get(tag[1]);
+        if (existing && existing.pubkey !== deletionEvent.pubkey) continue;
+
+        this.deletedEventIds.add(tag[1]);
+        if (existing) {
+          this.removeEvent(tag[1]);
+        }
+      } else if (tag[0] === "a" && tag[1]) {
+        // "a" tag format: "{kind}:{pubkey}:{d-tag}"
+        // Only honor if the deletion author matches the coordinate author
+        const parts = tag[1].split(":");
+        if (parts.length >= 2 && parts[1] !== deletionEvent.pubkey) continue;
+
+        this.deletedCoordinates.add(tag[1]);
+        // Remove any matching event currently in the store
+        for (const [eventId, event] of Array.from(this.eventsById.entries())) {
+          if (getEventCoordinate(event) === tag[1]) {
+            this.removeEvent(eventId);
+          }
+        }
+      }
+    }
+  }
+
+  /**
+   * Process a kind 84 participant removal event.
+   * Only honors the removal if the event author is a participant ("p" tag)
+   * on the referenced event. Unlike deletions, no same-author check is needed
+   * since any participant can opt out.
+   */
+  private processParticipantRemovalEvent(removalEvent: Event): void {
+    for (const tag of removalEvent.tags) {
+      if (tag[0] === "e" && tag[1]) {
+        const existing = this.eventsById.get(tag[1]);
+        if (existing) {
+          const isParticipant = existing.tags.some(
+            (t) => t[0] === "p" && t[1] === removalEvent.pubkey,
+          );
+          if (!isParticipant) continue;
+          this.removeEvent(tag[1]);
+        }
+        this.ignoredEventIds.add(tag[1]);
+      } else if (tag[0] === "a" && tag[1]) {
+        this.ignoredCoordinates.add(tag[1]);
+        for (const [eventId, ev] of Array.from(this.eventsById.entries())) {
+          if (getEventCoordinate(ev) === tag[1]) {
+            const isParticipant = ev.tags.some(
+              (t) => t[0] === "p" && t[1] === removalEvent.pubkey,
+            );
+            if (isParticipant) {
+              this.removeEvent(eventId);
+            }
+          }
+        }
+      }
+    }
+  }
+
+  /**
+   * Check if an event has been marked as deleted.
+   */
+  private isDeleted(event: Event): boolean {
+    if (this.deletedEventIds.has(event.id)) return true;
+    const coordinate = getEventCoordinate(event);
+    if (coordinate && this.deletedCoordinates.has(coordinate)) return true;
+    return false;
+  }
+
+  /**
+   * Check if an event has been ignored via a kind 84 participant removal.
+   */
+  isEventIgnored(event: Event): boolean {
+    if (this.ignoredEventIds.has(event.id)) return true;
+    const coordinate = getEventCoordinate(event);
+    if (coordinate && this.ignoredCoordinates.has(coordinate)) return true;
+    return false;
+  }
+
+  /**
    * Clear all events (useful for testing)
    */
   clear(): void {
@@ -296,6 +417,10 @@ export class EventStore {
     this.eventsByAuthor.clear();
     this.eventsByTag.clear();
     this.replaceableKeys.clear();
+    this.deletedEventIds.clear();
+    this.deletedCoordinates.clear();
+    this.ignoredEventIds.clear();
+    this.ignoredCoordinates.clear();
   }
 
   /**

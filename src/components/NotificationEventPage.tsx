@@ -4,12 +4,14 @@ import { CalendarEvent } from "./CalendarEvent";
 import { Box, IconButton, Toolbar, Typography } from "@mui/material";
 import ArrowBack from "@mui/icons-material/ArrowBack";
 import { Header } from "./Header";
+import { useIntl } from "react-intl";
 
 export const NotificationEventPage = () => {
+  const intl = useIntl();
   const { eventId } = useParams<{ eventId: string }>();
   const navigate = useNavigate();
   const events = useTimeBasedEvents((s) => s.events);
-  const event = events.find((e) => e.eventId === eventId);
+  const event = events.find((e) => e.id === eventId);
 
   return (
     <>
@@ -20,12 +22,16 @@ export const NotificationEventPage = () => {
           <IconButton onClick={() => navigate(-1)}>
             <ArrowBack />
           </IconButton>
-          <Typography variant="h5">{event?.title ?? "Event"}</Typography>
+          <Typography variant="h5">
+            {event?.title ?? intl.formatMessage({ id: "event.event" })}
+          </Typography>
         </Box>
         {event ? (
           <CalendarEvent event={event} />
         ) : (
-          <Typography>Event not found. It may not have loaded yet.</Typography>
+          <Typography>
+            {intl.formatMessage({ id: "event.eventNotFound" })}
+          </Typography>
         )}
       </Box>
     </>

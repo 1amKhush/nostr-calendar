@@ -2,10 +2,16 @@ import { Toolbar } from "@mui/material";
 import AppBar from "@mui/material/AppBar";
 import { Link } from "react-router";
 import { UserMenu } from "./UserMenu";
+import { ICSUpload } from "./ICSUpload";
+import { ICalendarEvent } from "../utils/types";
 
 export const HEADER_HEIGHT = 56;
 
-export const Header = () => {
+interface HeaderProps {
+  onImportEvent?: (event: ICalendarEvent) => void;
+}
+
+export const Header = ({ onImportEvent }: HeaderProps) => {
   return (
     <AppBar
       position="fixed"
@@ -21,24 +27,27 @@ export const Header = () => {
           justifyContent: "space-between",
         }}
       >
-        <Link
-          to={"/"}
-          style={{
-            display: "flex",
-            alignItems: "center",
-            width: "fit-content",
-          }}
-        >
-          <img
-            src="/formstr.png"
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <Link
+            to={"/"}
             style={{
-              objectFit: "contain",
-              height: "40px",
+              display: "flex",
+              alignItems: "center",
               width: "fit-content",
             }}
-            alt="Calendar Logo"
-          />
-        </Link>
+          >
+            <img
+              src="/formstr.png"
+              style={{
+                objectFit: "contain",
+                height: "40px",
+                width: "fit-content",
+              }}
+              alt="Calendar Logo"
+            />
+          </Link>
+          <ICSUpload onImportEvent={onImportEvent} />
+        </div>
         <UserMenu />
       </Toolbar>
     </AppBar>

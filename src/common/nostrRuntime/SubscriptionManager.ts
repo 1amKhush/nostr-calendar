@@ -102,11 +102,12 @@ export class SubscriptionManager {
           const closer = this.pool.subscribeMany(relays, [chunkFilter], {
             onevent: (event) => {
               // Add to event store
-              this.eventStore.addEvent(event);
-
-              // Notify all callbacks
-              for (const callback of Array.from(managedSub.callbacks)) {
-                callback(event);
+              const added = this.eventStore.addEvent(event);
+              if (added) {
+                // Notify all callbacks
+                for (const callback of Array.from(managedSub.callbacks)) {
+                  callback(event);
+                }
               }
             },
             oneose: () => {
@@ -132,11 +133,12 @@ export class SubscriptionManager {
       managedSub.closer = this.pool.subscribeMany(relays, filters, {
         onevent: (event) => {
           // Add to event store
-          this.eventStore.addEvent(event);
-
-          // Notify all callbacks
-          for (const callback of Array.from(managedSub.callbacks)) {
-            callback(event);
+          const added = this.eventStore.addEvent(event);
+          if (added) {
+            // Notify all callbacks
+            for (const callback of Array.from(managedSub.callbacks)) {
+              callback(event);
+            }
           }
         },
         oneose: () => {

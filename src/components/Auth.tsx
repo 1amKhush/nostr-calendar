@@ -48,6 +48,9 @@ export const Auth = () => {
   const logoutElem = (
     <>
       <MenuItem onClick={handleOpenRelays}>Relays</MenuItem>
+      <MenuItem onClick={handleOpenRelays}>
+        {intl.formatMessage({ id: "navigation.relays" })}
+      </MenuItem>
       <MenuItem onClick={handleLogout}>
         {intl.formatMessage({ id: "navigation.logout" })}
         {npub && <>({name || npub})</>}
