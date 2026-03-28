@@ -1,6 +1,9 @@
 package app.formstr.calendar;
 
+import android.content.Intent;
+import android.net.Uri;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.View;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
@@ -10,11 +13,16 @@ import androidx.work.PeriodicWorkRequest;
 import androidx.work.WorkManager;
 import com.getcapacitor.BridgeActivity;
 
+import java.io.BufferedReader;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.util.concurrent.TimeUnit;
 
 public class MainActivity extends BridgeActivity {
 
+    private static final String TAG = "MainActivity";
     private static final String NOTIFICATION_WORK_NAME = "calendar_notification_worker";
+    private String pendingIcsContent = null;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -28,6 +36,64 @@ public class MainActivity extends BridgeActivity {
         });
 
         scheduleNotificationWorker();
+        handleIcsIntent(getIntent());
+    }
+
+    @Override
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        handleIcsIntent(intent);
+    }
+
+    private void handleIcsIntent(Intent intent) {
+        if (intent == null) return;
+        String action = intent.getAction();
+        if (!Intent.ACTION_VIEW.equals(action)) return;
+
+        Uri uri = intent.getData();
+        if (uri == null) return;
+
+        try {
+            InputStream inputStream = getContentResolver().openInputStream(uri);
+            if (inputStream == null) return;
+
+            BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream));
+            StringBuilder sb = new StringBuilder();
+            String line;
+            while ((line = reader.readLine()) != null) {
+                sb.append(line).append("\n");
+            }
+            reader.close();
+            inputStream.close();
+
+            String icsContent = sb.toString();
+            sendIcsToWebView(icsContent);
+        } catch (Exception e) {
+            Log.e(TAG, "Failed to read ICS file from intent", e);
+        }
+    }
+
+    private void sendIcsToWebView(String icsContent) {
+        if (getBridge() != null && getBridge().getWebView() != null) {
+            String escaped = icsContent
+                    .replace("\\", "\\\\")
+                    .replace("\"", "\\\"")
+                    .replace("\n", "\\n")
+                    .replace("\r", "\\r");
+            String js = "window.dispatchEvent(new CustomEvent('icsFileReceived', { detail: \"" + escaped + "\" }));";
+            getBridge().getWebView().post(() -> getBridge().getWebView().evaluateJavascript(js, null));
+        } else {
+            pendingIcsContent = icsContent;
+        }
+    }
+
+    @Override
+    public void onStart() {
+        super.onStart();
+        if (pendingIcsContent != null && getBridge() != null && getBridge().getWebView() != null) {
+            sendIcsToWebView(pendingIcsContent);
+            pendingIcsContent = null;
+        }
     }
 
     private void scheduleNotificationWorker() {

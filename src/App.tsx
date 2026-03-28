@@ -59,6 +59,7 @@ function Application() {
     calendars,
     isLoaded: calendarsLoaded,
     createCalendar,
+    fetchCalendars,
   } = useCalendarLists();
   const [showOnboardingDialog, setShowOnboardingDialog] = useState(false);
 
@@ -108,6 +109,8 @@ function Application() {
   useEffect(() => {
     if (user && calendarsLoaded && calendars.length === 0) {
       setShowOnboardingDialog(true);
+    } else {
+      setShowOnboardingDialog(false);
     }
   }, [user, calendarsLoaded, calendars.length]);
 
@@ -173,6 +176,7 @@ function Application() {
           open={showOnboardingDialog}
           onClose={() => setShowOnboardingDialog(false)}
           onSave={handleOnboardingSave}
+          onRefetch={fetchCalendars}
           blocking
         />
       )}

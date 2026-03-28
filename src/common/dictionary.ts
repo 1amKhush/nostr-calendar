@@ -117,6 +117,7 @@ const dictionary: NestedObject = {
       color: "Color",
       onboardingExplanation:
         "Create a calendar to get started. Events are organized into calendars — you need at least one to add and manage your events.",
+      refetchCalendars: "Refetch Calendars",
     },
     sidebar: {
       calendars: "Calendars",
@@ -294,6 +295,7 @@ const dictionary: NestedObject = {
       color: "Farbe",
       onboardingExplanation:
         "Erstellen Sie einen Kalender, um loszulegen. Termine werden in Kalendern organisiert — Sie benötigen mindestens einen, um Termine hinzuzufügen und zu verwalten.",
+      refetchCalendars: "Kalender neu laden",
     },
     sidebar: {
       calendars: "Kalender",

@@ -1,7 +1,8 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { parseICS } from "../common/utils";
 import { ICalendarEvent } from "../utils/types";
 import { isAndroidNative } from "../utils/platform";
+import { useUser } from "../stores/user";
 import CalendarEventEdit from "./CalendarEventEdit";
 
 interface ICSListenerProps {
@@ -15,43 +16,53 @@ export function ICSListener({
   onClose,
   onImportEvent,
 }: ICSListenerProps) {
+  const { user } = useUser();
+  const pendingIcsContent = useRef<string | null>(null);
+
   // Handle incoming .ics files on Android (when app is opened via file intent)
   useEffect(() => {
     if (!isAndroidNative()) return;
 
-    let cleanup: (() => void) | undefined;
-    import("@capacitor/app").then(({ App: CapApp }) => {
-      const handleAppUrl = async (data: { url: string }) => {
-        try {
-          const response = await fetch(data.url);
-          const content = await response.text();
-          const event = parseICS(content);
-          if (event) {
-            onImportEvent(event);
-          }
-        } catch (err) {
-          console.error("Failed to read .ics file:", err);
+    const handleIcsFile = (e: Event) => {
+      const content = (e as CustomEvent<string>).detail;
+      if (!content) return;
+
+      if (!user) {
+        // User not logged in yet (cold start) — hold the content until they are
+        pendingIcsContent.current = content;
+        return;
+      }
+
+      try {
+        const event = parseICS(content);
+        if (event) {
+          onImportEvent(event);
         }
-      };
-
-      // Check if app was opened with a URL
-      CapApp.getLaunchUrl().then((result) => {
-        if (result?.url) {
-          handleAppUrl({ url: result.url });
-        }
-      });
-
-      // Listen for future file opens
-      const listener = CapApp.addListener("appUrlOpen", handleAppUrl);
-      cleanup = () => {
-        listener.then((l) => l.remove());
-      };
-    });
-
-    return () => {
-      cleanup?.();
+      } catch (err) {
+        console.error("Failed to parse .ics file:", err);
+      }
     };
-  }, [onImportEvent]);
+
+    window.addEventListener("icsFileReceived", handleIcsFile);
+    return () => {
+      window.removeEventListener("icsFileReceived", handleIcsFile);
+    };
+  }, [user, onImportEvent]);
+
+  // Process pending ICS content once the user logs in
+  useEffect(() => {
+    if (!user || !pendingIcsContent.current) return;
+
+    try {
+      const event = parseICS(pendingIcsContent.current);
+      if (event) {
+        onImportEvent(event);
+      }
+    } catch (err) {
+      console.error("Failed to parse pending .ics file:", err);
+    }
+    pendingIcsContent.current = null;
+  }, [user, onImportEvent]);
 
   if (!importedEvent) return null;
 
