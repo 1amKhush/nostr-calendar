@@ -35,6 +35,7 @@ import {
   scheduleEventNotifications,
   cancelEventNotifications,
 } from "../utils/notifications";
+import { useNotifications } from "./notifications";
 import {
   getSecureItem,
   setSecureItem,
@@ -133,7 +134,9 @@ const processPrivateEvent = (
     }
   }
   console.log(parsedEvent);
-  scheduleEventNotifications(parsedEvent);
+  scheduleEventNotifications(parsedEvent).then((notifications) => {
+    useNotifications.getState().setNotifications(parsedEvent.id, notifications);
+  });
   const updatedEvents = denormalize(store);
   saveEventsToStorage(updatedEvents);
   useTimeBasedEvents.setState({
@@ -186,7 +189,12 @@ export const useTimeBasedEvents = create<{
     });
     // Cancel old notifications and reschedule with updated event data
     cancelEventNotifications(updatedEvent.id).then(() => {
-      scheduleEventNotifications(updatedEvent);
+      useNotifications.getState().removeNotifications(updatedEvent.id);
+      scheduleEventNotifications(updatedEvent).then((notifications) => {
+        useNotifications
+          .getState()
+          .setNotifications(updatedEvent.id, notifications);
+      });
     });
   },
   removeEvent: (id) => {
@@ -203,6 +211,7 @@ export const useTimeBasedEvents = create<{
       };
     });
     cancelEventNotifications(id);
+    useNotifications.getState().removeNotifications(id);
   },
   resetPrivateEvents: () => {
     set(({ events }) => {

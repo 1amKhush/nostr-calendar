@@ -30,11 +30,14 @@ import OpenInNew from "@mui/icons-material/OpenInNew";
 import Download from "@mui/icons-material/Download";
 import Edit from "@mui/icons-material/Edit";
 import Delete from "@mui/icons-material/Delete";
+import NotificationsActiveIcon from "@mui/icons-material/NotificationsActive";
+import dayjs from "dayjs";
 import { exportICS, isMobile } from "../common/utils";
 import { encodeNAddr } from "../common/nostr";
 import { getEditEventPage, getEventPage } from "../utils/routingHelper";
 import { useNavigate } from "react-router";
 import { isNative } from "../utils/platform";
+import { useNotifications } from "../stores/notifications";
 import { useCalendarLists } from "../stores/calendarLists";
 import { FormattedMessage, useIntl } from "react-intl";
 import { useUser } from "../stores/user";
@@ -453,9 +456,44 @@ export function CalendarEvent({ event }: CalendarEventViewProps) {
               <InvitationAcceptBar event={event} />
             </>
           )}
+
+          <ScheduledNotificationsSection eventId={event.id} />
         </Stack>
       </Box>
     </Box>
+  );
+}
+
+function ScheduledNotificationsSection({ eventId }: { eventId: string }) {
+  const intl = useIntl();
+  const { byEventId } = useNotifications();
+
+  const notifications = byEventId[eventId];
+  if (!notifications?.length) return null;
+
+  return (
+    <>
+      <Divider />
+      <Box>
+        <Box display="flex" alignItems="center" gap={0.5} mb={1}>
+          <NotificationsActiveIcon fontSize="small" color="action" />
+          <Typography variant="subtitle2">
+            {intl.formatMessage({ id: "event.scheduledNotifications" })}
+          </Typography>
+        </Box>
+        <Stack spacing={0.5}>
+          {notifications?.map((n) => (
+            <Typography
+              key={n.scheduledAt}
+              variant="body2"
+              color="text.secondary"
+            >
+              {dayjs(n.scheduledAt).format("ddd, DD MMM YYYY ⋅ HH:mm")}
+            </Typography>
+          ))}
+        </Stack>
+      </Box>
+    </>
   );
 }
 

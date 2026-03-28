@@ -92,6 +92,7 @@ const dictionary: NestedObject = {
       notAuthorized: "You are not allowed to edit this event.",
       notInCalendar:
         "This event is not in any of your calendars. You will not receive notifications for this event. Add it to your calendar to receive notifications.",
+      scheduledNotifications: "Scheduled Notifications",
     },
     deleteEvent: {
       title: "Delete Event",
@@ -268,6 +269,7 @@ const dictionary: NestedObject = {
       notAuthorized: "Sie sind nicht berechtigt, diesen Termin zu bearbeiten.",
       notInCalendar:
         "Dieser Termin ist in keinem Ihrer Kalender. Sie erhalten keine Benachrichtigungen für diesen Termin. Fügen Sie ihn zu Ihrem Kalender hinzu, um Benachrichtigungen zu erhalten.",
+      scheduledNotifications: "Geplante Benachrichtigungen",
     },
     deleteEvent: {
       title: "Termin löschen",
