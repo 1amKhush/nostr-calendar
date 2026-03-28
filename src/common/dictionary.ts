@@ -131,6 +131,7 @@ const dictionary: NestedObject = {
       loadingEventDetails: "Loading event details...",
       dismiss: "Dismiss",
       acceptInvitation: "Add to Calendar",
+      invitedBy: "You have been invited by {participant} to this event",
     },
     login: {
       signInToFormstr: "Sign in to Formstr",
@@ -169,6 +170,7 @@ const dictionary: NestedObject = {
     participant: {
       clickToCopy: "Click to copy",
       copied: "Copied!",
+      author: "Organiser",
     },
   },
   "de-DE": {
@@ -303,6 +305,7 @@ const dictionary: NestedObject = {
       loadingEventDetails: "Termindetails werden geladen...",
       dismiss: "Verwerfen",
       acceptInvitation: "Zum Kalender hinzufügen",
+      invitedBy: "Sie wurden von {participant} zu diesem Termin eingeladen",
     },
     login: {
       signInToFormstr: "Bei Formstr anmelden",
@@ -341,6 +344,7 @@ const dictionary: NestedObject = {
     participant: {
       clickToCopy: "Klicken zum Kopieren",
       copied: "Kopiert!",
+      author: "Organisator",
     },
   },
 };

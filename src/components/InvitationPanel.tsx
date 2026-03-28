@@ -24,8 +24,9 @@ import { useNavigate } from "react-router";
 import { useInvitations } from "../stores/invitations";
 import { AddToCalendarDialog } from "./AddToCalendarDialog";
 import { TimeRenderer } from "./TimeRenderer";
+import { Participant } from "./Participant";
 import type { ICalendarEvent } from "../utils/types";
-import { useIntl } from "react-intl";
+import { FormattedMessage, useIntl } from "react-intl";
 import { useCalendarLists } from "../stores/calendarLists";
 
 export function InvitationPanel() {
@@ -126,6 +127,25 @@ export function InvitationPanel() {
                   {invitation.event.description}
                 </Typography>
               )}
+              <Box
+                display="flex"
+                alignItems="center"
+                gap={0.5}
+                mt={1}
+                flexWrap="wrap"
+              >
+                <FormattedMessage
+                  id="invitation.invitedBy"
+                  values={{
+                    participant: (
+                      <Participant
+                        pubKey={invitation.event.user}
+                        isAuthor={false}
+                      />
+                    ),
+                  }}
+                />
+              </Box>
             </Box>
           ) : (
             <Typography variant="body2" color="text.secondary">

@@ -82,9 +82,7 @@ export const EditEventPage = () => {
 
   return (
     <>
-      <Header />
       <Box component="main" style={{ width: "100%", minHeight: "100vh" }}>
-        <Toolbar />
         {(loadState.fetchState === "loading" || !calendarsLoaded) && (
           <Box
             style={{

@@ -238,12 +238,13 @@ async function preparePrivateCalendarEvent(
     eventData.push(["location", loc]);
   });
 
+  const userPublicKey = await getUserPublicKey();
+  eventData.push(["p", userPublicKey]);
   event.participants.forEach((participant) => {
     eventData.push(["p", participant]);
   });
 
   const viewPublicKey = getPublicKey(viewSecretKey);
-  const userPublicKey = await getUserPublicKey();
   const eventContent = nip44.encrypt(
     JSON.stringify(eventData),
     nip44.getConversationKey(viewSecretKey, viewPublicKey),
@@ -297,7 +298,7 @@ export async function publishPrivateCalendarEvent(
         kind: EventKinds.CalendarEventRumor,
         content: "",
         tags: [
-          ["a", `${eventKind}:${participant}:${dTag}`],
+          ["a", `${eventKind}:${signedEvent.pubkey}:${dTag}`],
           ["viewKey", nip19.nsecEncode(viewSecretKey)],
         ],
       },

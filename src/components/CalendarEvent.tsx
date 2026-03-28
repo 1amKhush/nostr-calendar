@@ -36,7 +36,7 @@ import { getEditEventPage, getEventPage } from "../utils/routingHelper";
 import { useNavigate } from "react-router";
 import { isNative } from "../utils/platform";
 import { useCalendarLists } from "../stores/calendarLists";
-import { useIntl } from "react-intl";
+import { FormattedMessage, useIntl } from "react-intl";
 import { useUser } from "../stores/user";
 import { DeleteEventDialog } from "./DeleteEventDialog";
 import { CalendarListSelect } from "./CalendarListSelect";
@@ -425,7 +425,7 @@ export function CalendarEvent({ event }: CalendarEventViewProps) {
             <Stack direction="row" gap={0.5} flexWrap="wrap">
               {event.participants.map((p) => (
                 <Box width={"100%"} key={p}>
-                  <Participant pubKey={p} />
+                  <Participant pubKey={p} isAuthor={p === event.user} />
                 </Box>
               ))}
             </Stack>
@@ -484,9 +484,28 @@ function InvitationAcceptBar({ event }: { event: ICalendarEvent }) {
         p: 1.5,
       }}
     >
-      <Typography variant="body2" color="text.secondary">
-        {intl.formatMessage({ id: "event.notInCalendar" })}
-      </Typography>
+      <Box display="flex" alignItems="center" gap={0.5} flexWrap="wrap">
+        <Typography
+          variant="body1"
+          color="text.primary"
+          sx={{
+            display: "flex",
+            gap: "4px",
+            alignItems: "center",
+          }}
+          component="span"
+        >
+          <FormattedMessage
+            id="invitation.invitedBy"
+            values={{
+              participant: <Participant pubKey={event.user} isAuthor={false} />,
+            }}
+          />
+        </Typography>
+        <Typography variant="body2" color="text.secondary">
+          {intl.formatMessage({ id: "event.notInCalendar" })}
+        </Typography>
+      </Box>
       <Box display="flex" alignItems="center" gap={1} flexWrap="wrap">
         <Box maxWidth={500} flex={1} minWidth={150}>
           <CalendarListSelect

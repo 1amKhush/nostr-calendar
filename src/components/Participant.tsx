@@ -14,6 +14,7 @@ import { useIntl } from "react-intl";
 interface ParticipantProps {
   pubKey: string;
   rsvpResponse?: RSVPResponse;
+  isAuthor: boolean;
 }
 
 const getRSVPIcon = (response: RSVPResponse, theme: Theme) => {
@@ -61,13 +62,16 @@ const truncateText = (text: string, maxLength: number = 20) => {
 
 export const Participant = ({
   pubKey,
-  rsvpResponse = RSVPResponse.pending,
+  rsvpResponse,
+  isAuthor,
 }: ParticipantProps) => {
   const intl = useIntl();
   const theme = useTheme();
   const { participant, loading } = useGetParticipant({ pubKey });
   const npub = nip19.npubEncode(pubKey);
-  const [copyTooltip, setCopyTooltip] = useState(intl.formatMessage({ id: "participant.clickToCopy" }));
+  const [copyTooltip, setCopyTooltip] = useState(
+    intl.formatMessage({ id: "participant.clickToCopy" }),
+  );
 
   const displayName = participant?.name || npub;
   const isLongText = displayName.length > 20;
@@ -77,7 +81,11 @@ export const Participant = ({
     try {
       await navigator.clipboard.writeText(displayName);
       setCopyTooltip(intl.formatMessage({ id: "participant.copied" }));
-      setTimeout(() => setCopyTooltip(intl.formatMessage({ id: "participant.clickToCopy" })), 2000);
+      setTimeout(
+        () =>
+          setCopyTooltip(intl.formatMessage({ id: "participant.clickToCopy" })),
+        2000,
+      );
     } catch (err) {
       console.error("Failed to copy:", err);
     }
@@ -87,8 +95,7 @@ export const Participant = ({
     return (
       <div
         style={{
-          display: "flex",
-          maxWidth: "92%",
+          display: "inline-flex",
           alignItems: "center",
           gap: "12px",
         }}
@@ -114,8 +121,7 @@ export const Participant = ({
   return (
     <div
       style={{
-        display: "flex",
-        maxWidth: "92%",
+        display: "inline-flex",
         alignItems: "center",
         gap: "12px",
       }}
@@ -155,7 +161,14 @@ export const Participant = ({
             gap: "4px",
           }}
         >
-          <span>{truncateText(displayName)}</span>
+          <span style={{ textDecoration: "underline" }}>
+            {truncateText(displayName)}
+          </span>
+          {isAuthor && (
+            <span style={{ color: theme.palette.text.secondary }}>
+              ({intl.formatMessage({ id: "participant.author" })})
+            </span>
+          )}
           {isLongText && (
             <Tooltip title={copyTooltip} arrow>
               <IconButton
