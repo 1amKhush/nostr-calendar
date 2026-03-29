@@ -39,7 +39,7 @@ public class InvitationWorker extends Worker {
     private static final String PREFS_NAME = "CapacitorStorage";
     private static final String PUBKEY_KEY = "bg:userPubkey";
     private static final String RELAYS_KEY = "bg:relays";
-    private static final String LAST_LOGIN_KEY = "bg:lastLoginTime";
+    private static final String LAST_INVITATION_FETCH_KEY = "bg:lastInvitationFetchTime";
     private static final String CHANNEL_ID = "calendar_invitations";
     private static final int NOTIFICATION_ID = 0x1052;
     private static final int MAX_RELAYS = 3;
@@ -60,7 +60,7 @@ public class InvitationWorker extends Worker {
 
             String pubkey = parseJsonString(prefs.getString(PUBKEY_KEY, null));
             String relaysRaw = prefs.getString(RELAYS_KEY, null);
-            String lastLoginRaw = prefs.getString(LAST_LOGIN_KEY, null);
+            String lastFetchRaw = prefs.getString(LAST_INVITATION_FETCH_KEY, null);
 
             if (pubkey == null || pubkey.isEmpty()) {
                 Log.d(TAG, "No pubkey found, skipping");
@@ -72,12 +72,13 @@ public class InvitationWorker extends Worker {
                 return Result.success();
             }
 
-            long since = 0;
-            if (lastLoginRaw != null) {
+            // Default to one week ago if no fetch time is stored
+            long since = System.currentTimeMillis() / 1000 - 7 * 24 * 60 * 60;
+            if (lastFetchRaw != null) {
                 try {
-                    since = Long.parseLong(lastLoginRaw.replace("\"", ""));
+                    since = Long.parseLong(lastFetchRaw.replace("\"", ""));
                 } catch (NumberFormatException e) {
-                    Log.w(TAG, "Failed to parse lastLoginTime", e);
+                    Log.w(TAG, "Failed to parse lastInvitationFetchTime", e);
                 }
             }
 

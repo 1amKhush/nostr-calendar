@@ -11,3 +11,4 @@ export const USER_DATA_TTL_HOURS = 168; // 7 days
 export const BG_KEY_USER_PUBKEY = "bg:userPubkey";
 export const BG_KEY_RELAYS = "bg:relays";
 export const BG_KEY_LAST_LOGIN_TIME = "bg:lastLoginTime";
+export const BG_KEY_LAST_INVITATION_FETCH_TIME = "bg:lastInvitationFetchTime";

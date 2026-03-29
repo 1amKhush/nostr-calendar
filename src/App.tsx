@@ -27,7 +27,7 @@ import { useTimeBasedEvents } from "./stores/events";
 import { useRelayStore } from "./stores/relays";
 import { isNative } from "./utils/platform";
 import { setSecureItem } from "./common/localStorage";
-import { BG_KEY_LAST_LOGIN_TIME } from "./utils/constants";
+import { BG_KEY_LAST_INVITATION_FETCH_TIME } from "./utils/constants";
 import { ICSListener } from "./components/ICSListener";
 import { ICalendarEvent } from "./utils/types";
 import { useCalendarLists } from "./stores/calendarLists";
@@ -101,7 +101,7 @@ function Application() {
     };
   }, []);
 
-  // Update last login time when app resumes (for background invitation worker)
+  // Update last invitation fetch time when app resumes (for background invitation worker)
   useEffect(() => {
     if (!isNative || !user) return;
 
@@ -109,7 +109,7 @@ function Application() {
     import("@capacitor/app").then(({ App: CapApp }) => {
       const listener = CapApp.addListener("appStateChange", ({ isActive }) => {
         if (isActive) {
-          setSecureItem(BG_KEY_LAST_LOGIN_TIME, Math.floor(Date.now() / 1000));
+          setSecureItem(BG_KEY_LAST_INVITATION_FETCH_TIME, Math.floor(Date.now() / 1000));
         }
       });
       cleanup = () => {

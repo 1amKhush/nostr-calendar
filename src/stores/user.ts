@@ -16,6 +16,7 @@ import {
   BG_KEY_USER_PUBKEY,
   BG_KEY_RELAYS,
   BG_KEY_LAST_LOGIN_TIME,
+  BG_KEY_LAST_INVITATION_FETCH_TIME,
 } from "../utils/constants";
 
 export interface IUser {
@@ -63,6 +64,7 @@ export const useUser = create<{
     await removeSecureItem(BG_KEY_USER_PUBKEY);
     await removeSecureItem(BG_KEY_RELAYS);
     await removeSecureItem(BG_KEY_LAST_LOGIN_TIME);
+    await removeSecureItem(BG_KEY_LAST_INVITATION_FETCH_TIME);
     set({ user: null });
     localStorage.removeItem(USER_STORAGE_KEY);
   },
