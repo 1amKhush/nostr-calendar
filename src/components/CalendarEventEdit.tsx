@@ -21,9 +21,9 @@ import {
 import CloseIcon from "@mui/icons-material/Close";
 import { ICalendarEvent, RepeatingFrequency } from "../utils/types";
 import {
-  buildRecurrenceRule,
-  parseRecurrenceRule,
-  type RecurrenceEndMode,
+  frequencyToRRule,
+  getEventRRules,
+  normalizeRRule,
 } from "../utils/repeatingEventsHelper";
 import { ParticipantAdd } from "./ParticipantAdd";
 import { useIntl } from "react-intl";
@@ -83,7 +83,15 @@ export function CalendarEventEdit({
 
   const [eventDetails, setEventDetails] = useState<ICalendarEvent>(() => {
     if (initialEvent) {
-      return { ...initialEvent };
+      const recurrenceRules = getEventRRules(initialEvent.repeat);
+      return {
+        ...initialEvent,
+        repeat: {
+          ...initialEvent.repeat,
+          rrule: recurrenceRules[0] ?? null,
+          rrules: recurrenceRules,
+        },
+      };
     }
 
     const begin = initialDateTime || Date.now();
@@ -109,6 +117,7 @@ export function CalendarEventEdit({
       isPrivateEvent: true,
       repeat: {
         rrule: null,
+        rrules: [],
       },
     } as ICalendarEvent;
   });
@@ -204,41 +213,71 @@ export function CalendarEventEdit({
     updateField("end", value.unix() * 1000);
   };
 
-  const handleFrequencyChange = (e: SelectChangeEvent<string>) => {
-    const value = e.target.value as RepeatingFrequency;
-    setRecurrenceFrequency(value);
+  const recurrenceOptions: Array<{
+    value: string;
+    labelId: string;
+  }> = [
+    {
+      value: frequencyToRRule(RepeatingFrequency.Daily)!,
+      labelId: "event.daily",
+    },
+    {
+      value: frequencyToRRule(RepeatingFrequency.Weekly)!,
+      labelId: "event.weekly",
+    },
+    {
+      value: frequencyToRRule(RepeatingFrequency.Weekday)!,
+      labelId: "event.weekdays",
+    },
+    {
+      value: frequencyToRRule(RepeatingFrequency.Monthly)!,
+      labelId: "event.monthly",
+    },
+    {
+      value: frequencyToRRule(RepeatingFrequency.Quarterly)!,
+      labelId: "event.quarterly",
+    },
+    {
+      value: frequencyToRRule(RepeatingFrequency.Yearly)!,
+      labelId: "event.yearly",
+    },
+  ];
+
+  const setRecurrenceRules = (rules: string[]) => {
+    const normalizedRules = getEventRRules({ rrule: null, rrules: rules });
+
+    updateField("repeat", {
+      rrule: normalizedRules[0] ?? null,
+      rrules: normalizedRules,
+    });
   };
 
-  const handleRecurrenceEndModeChange = (e: SelectChangeEvent<string>) => {
-    const value = e.target.value as RecurrenceEndMode;
-    setRecurrenceEndMode(value);
-
-    if (value === "count" && recurrenceCount < 1) {
-      setRecurrenceCount(1);
-    }
-
-    if (value === "until" && !recurrenceUntilDate) {
-      setRecurrenceUntilDate(dayjs(eventDetails.begin).startOf("day"));
-    }
-  };
-
-  const handleRecurrenceCountChange = (
-    e: React.ChangeEvent<HTMLInputElement>,
+  const handleRecurrenceRuleChange = (
+    index: number,
+    event: SelectChangeEvent<string>,
   ) => {
-    const parsed = Number.parseInt(e.target.value, 10);
-    setRecurrenceCount(Number.isFinite(parsed) ? parsed : 0);
+    const selectedRule = normalizeRRule(event.target.value);
+    const existingRules = getEventRRules(eventDetails.repeat);
+    const editableRules = existingRules.length > 0 ? [...existingRules] : [""];
+
+    editableRules[index] = selectedRule;
+    setRecurrenceRules(editableRules.filter(Boolean));
   };
 
-  const recurrenceEnabled = recurrenceFrequency !== RepeatingFrequency.None;
-  const recurrenceValid =
-    !recurrenceEnabled ||
-    recurrenceEndMode === "never" ||
-    (recurrenceEndMode === "count" &&
-      Number.isInteger(recurrenceCount) &&
-      recurrenceCount >= 1) ||
-    (recurrenceEndMode === "until" &&
-      !!recurrenceUntilDate &&
-      !recurrenceUntilDate.isBefore(dayjs(eventDetails.begin).startOf("day")));
+  const handleAddRecurrenceRule = () => {
+    const defaultRule = frequencyToRRule(RepeatingFrequency.Daily);
+    if (!defaultRule) {
+      return;
+    }
+
+    const existingRules = getEventRRules(eventDetails.repeat);
+    setRecurrenceRules([...existingRules, defaultRule]);
+  };
+
+  const handleRemoveRecurrenceRule = (index: number) => {
+    const existingRules = getEventRRules(eventDetails.repeat);
+    setRecurrenceRules(existingRules.filter((_, i) => i !== index));
+  };
 
   const buttonDisabled = !(
     !processing &&
@@ -252,6 +291,10 @@ export function CalendarEventEdit({
   if (!open || !eventDetails) {
     return null;
   }
+
+  const recurrenceRules = getEventRRules(eventDetails.repeat);
+  const displayedRecurrenceRules =
+    recurrenceRules.length > 0 ? recurrenceRules : [""];
 
   const titleBar = (
     <Box
@@ -345,107 +388,53 @@ export function CalendarEventEdit({
       {/* Recurrence */}
       <EventAttributeEditContainer>
         <EventRepeatIcon />
-        <Box
-          sx={{
-            width: "100%",
-            display: "flex",
-            flexDirection: "column",
-            gap: 2,
-          }}
-        >
-          <FormControl fullWidth size="small">
-            <InputLabel>
-              {intl.formatMessage({ id: "event.selectRecurrence" })}
-            </InputLabel>
-            <Select
-              value={recurrenceFrequency}
-              label={intl.formatMessage({ id: "event.selectRecurrence" })}
-              onChange={handleFrequencyChange}
-            >
-              <MenuItem value={RepeatingFrequency.None}>
-                {intl.formatMessage({ id: "event.doesNotRepeat" })}
-              </MenuItem>
-              <MenuItem value={RepeatingFrequency.Daily}>
-                {intl.formatMessage({ id: "event.daily" })}
-              </MenuItem>
-              <MenuItem value={RepeatingFrequency.Weekly}>
-                {intl.formatMessage({ id: "event.weekly" })}
-              </MenuItem>
-              <MenuItem value={RepeatingFrequency.Weekday}>
-                {intl.formatMessage({ id: "event.weekdays" })}
-              </MenuItem>
-              <MenuItem value={RepeatingFrequency.Monthly}>
-                {intl.formatMessage({ id: "event.monthly" })}
-              </MenuItem>
-              <MenuItem value={RepeatingFrequency.Quarterly}>
-                {intl.formatMessage({ id: "event.quarterly" })}
-              </MenuItem>
-              <MenuItem value={RepeatingFrequency.Yearly}>
-                {intl.formatMessage({ id: "event.yearly" })}
-              </MenuItem>
-            </Select>
-          </FormControl>
+        <Box style={{ display: "flex", flexDirection: "column", gap: 8, width: "100%" }}>
+          {displayedRecurrenceRules.map((rule, index) => {
+            const isCustomRule =
+              !!rule && !recurrenceOptions.some((option) => option.value === rule);
 
-          {recurrenceEnabled && (
-            <Box
-              sx={{
-                display: "flex",
-                gap: 2,
-                flexDirection: { xs: "column", sm: "row" },
-              }}
-            >
-              <FormControl size="small" sx={{ minWidth: { sm: 180 } }}>
-                <InputLabel>
-                  {intl.formatMessage({ id: "event.recurrenceEnds" })}
-                </InputLabel>
-                <Select
-                  value={recurrenceEndMode}
-                  label={intl.formatMessage({ id: "event.recurrenceEnds" })}
-                  onChange={handleRecurrenceEndModeChange}
-                >
-                  <MenuItem value="never">
-                    {intl.formatMessage({ id: "event.recurrenceEndsNever" })}
-                  </MenuItem>
-                  <MenuItem value="count">
-                    {intl.formatMessage({ id: "event.recurrenceEndsAfter" })}
-                  </MenuItem>
-                  <MenuItem value="until">
-                    {intl.formatMessage({ id: "event.recurrenceEndsOnDate" })}
-                  </MenuItem>
-                </Select>
-              </FormControl>
+            return (
+              <Box
+                key={`${rule || "none"}-${index}`}
+                style={{ display: "flex", gap: 8, alignItems: "center" }}
+              >
+                <FormControl fullWidth size="small">
+                  <InputLabel>
+                    {intl.formatMessage({ id: "event.selectRecurrence" })}
+                  </InputLabel>
+                  <Select
+                    value={rule}
+                    label={intl.formatMessage({ id: "event.selectRecurrence" })}
+                    onChange={(event) => handleRecurrenceRuleChange(index, event)}
+                  >
+                    <MenuItem value="">
+                      {intl.formatMessage({ id: "event.doesNotRepeat" })}
+                    </MenuItem>
+                    {recurrenceOptions.map((option) => (
+                      <MenuItem key={option.value} value={option.value}>
+                        {intl.formatMessage({ id: option.labelId })}
+                      </MenuItem>
+                    ))}
+                    {isCustomRule && <MenuItem value={rule}>{rule}</MenuItem>}
+                  </Select>
+                </FormControl>
+                {displayedRecurrenceRules.length > 1 && (
+                  <Button
+                    color="error"
+                    onClick={() => handleRemoveRecurrenceRule(index)}
+                  >
+                    {intl.formatMessage({ id: "navigation.remove" })}
+                  </Button>
+                )}
+              </Box>
+            );
+          })}
 
-              {recurrenceEndMode === "count" && (
-                <TextField
-                  size="small"
-                  type="number"
-                  label={intl.formatMessage({ id: "event.recurrenceOccurrences" })}
-                  value={recurrenceCount}
-                  onChange={handleRecurrenceCountChange}
-                  inputProps={{ min: 1 }}
-                  sx={{ flex: 1 }}
-                />
-              )}
-
-              {recurrenceEndMode === "until" && (
-                <DatePicker
-                  sx={{ flex: 1 }}
-                  label={intl.formatMessage({ id: "event.recurrenceEndDate" })}
-                  value={recurrenceUntilDate}
-                  onChange={(value) =>
-                    setRecurrenceUntilDate(value ? value.startOf("day") : null)
-                  }
-                  minDate={dayjs(eventDetails.begin).startOf("day")}
-                  slotProps={{
-                    textField: {
-                      size: "small",
-                      fullWidth: true,
-                    },
-                  }}
-                />
-              )}
-            </Box>
-          )}
+          <Box>
+            <Button onClick={handleAddRecurrenceRule}>
+              {intl.formatMessage({ id: "navigation.add" })}
+            </Button>
+          </Box>
         </Box>
       </EventAttributeEditContainer>
       <Divider />

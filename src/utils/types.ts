@@ -55,6 +55,7 @@ export interface ICalendarEvent {
   viewKey?: string;
   repeat: {
     rrule: string | null;
+    rrules?: string[];
   };
   calendarId?: string;
   isInvitation?: boolean;
