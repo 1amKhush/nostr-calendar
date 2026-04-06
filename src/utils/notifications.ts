@@ -95,9 +95,9 @@ export async function scheduleEventNotifications(
   const baseId = hashToNumber(notificationKey);
   const tenMinBefore = occurrenceStart - 10 * 60 * 1000;
 
-  const firstLocation = event.location?.find((location) =>
-    location?.trim?.(),
-  );
+  const firstLocation = event.location
+    ?.map((location) => location?.trim?.())
+    .find((location) => location);
   const locationSuffix = firstLocation ? ` at ${firstLocation}` : "";
 
   const notifications: Array<{
