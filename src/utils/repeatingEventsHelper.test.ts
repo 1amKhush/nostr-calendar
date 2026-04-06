@@ -3,6 +3,7 @@ import {
   isEventInDateRange,
   getNextOccurrenceInRange,
   frequencyToRRule,
+  getEventRRules,
   rruleToFrequency,
 } from "./repeatingEventsHelper";
 import { RepeatingFrequency, ICalendarEvent } from "./types";
@@ -79,6 +80,17 @@ describe("rruleToFrequency", () => {
   it("returns null for unknown rules", () => {
     expect(rruleToFrequency("FREQ=SECONDLY")).toBeNull();
     expect(rruleToFrequency("")).toBeNull();
+  });
+});
+
+describe("getEventRRules", () => {
+  it("returns de-duplicated normalized recurrence rules", () => {
+    const rules = getEventRRules({
+      rrule: "RRULE:FREQ=WEEKLY",
+      rrules: ["FREQ=WEEKLY", "RRULE:FREQ=MONTHLY", "FREQ=WEEKLY"],
+    });
+
+    expect(rules).toEqual(["FREQ=WEEKLY", "FREQ=MONTHLY"]);
   });
 });
 
@@ -284,6 +296,22 @@ describe("isEventInDateRange – weekday recurrence", () => {
   });
 });
 
+describe("isEventInDateRange – multiple recurrence rules", () => {
+  const jan1 = Date.UTC(2025, 0, 1, 10);
+  const event = makeEvent({
+    begin: jan1,
+    repeat: {
+      rrule: null,
+      rrules: ["FREQ=WEEKLY", "FREQ=MONTHLY"],
+    },
+  });
+
+  it("matches when any recurrence rule has an occurrence in range", () => {
+    const feb1 = Date.UTC(2025, 1, 1, 10);
+    expect(isEventInDateRange(event, feb1 - HOUR, feb1 + HOUR)).toBe(true);
+  });
+});
+
 // ─── getNextOccurrenceInRange ───────────────────────────────────────
 
 describe("getNextOccurrenceInRange – non-repeating", () => {
@@ -428,5 +456,24 @@ describe("getNextOccurrenceInRange – weekday recurrence", () => {
     const sat = Date.UTC(2025, 0, 11, 10);
     const result = getNextOccurrenceInRange(event, sat, sat + HOUR);
     expect(result).toBeNull();
+  });
+});
+
+describe("getNextOccurrenceInRange – multiple recurrence rules", () => {
+  const jan1 = Date.UTC(2025, 0, 1, 10); // Wednesday
+  const event = makeEvent({
+    begin: jan1,
+    repeat: {
+      rrule: null,
+      rrules: ["FREQ=WEEKLY", "FREQ=MONTHLY"],
+    },
+  });
+
+  it("returns the earliest occurrence across all rules", () => {
+    const jan29 = Date.UTC(2025, 0, 29, 10); // weekly
+    const feb1 = Date.UTC(2025, 1, 1, 10); // monthly
+
+    const result = getNextOccurrenceInRange(event, jan29 - HOUR, feb1 + HOUR);
+    expect(result).toBe(jan29);
   });
 });

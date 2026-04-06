@@ -1,5 +1,6 @@
 import { Event } from "nostr-tools";
 import type { ICalendarEvent } from "./types";
+import { normalizeRRule } from "./repeatingEventsHelper";
 
 export const nostrEventToCalendar = (
   event: Event,
@@ -28,10 +29,14 @@ export const nostrEventToCalendar = (
     isPrivateEvent: !!isPrivateEvent,
     repeat: {
       rrule: null,
+      rrules: [],
     },
     rsvpResponses: [],
   };
-  event.tags.forEach(([key, value], index) => {
+  const recurrenceRules: string[] = [];
+  let activeLabelNamespace: string | null = null;
+
+  event.tags.forEach(([key, value, labelNamespace]) => {
     switch (key) {
       case "description":
         parsedEvent.description = value;
@@ -68,15 +73,33 @@ export const nostrEventToCalendar = (
         parsedEvent.geoHash.push(value);
         break;
       case "L":
-        switch (value) {
-          case "rrule":
-            parsedEvent.repeat = {
-              rrule: event.tags[index + 1]?.[1] || null,
-            };
-            break;
-        }
+        activeLabelNamespace = value;
         break;
+      case "l": {
+        const isRRuleLabel =
+          labelNamespace === "rrule" || activeLabelNamespace === "rrule";
+
+        if (!isRRuleLabel || !value) {
+          activeLabelNamespace = null;
+          break;
+        }
+
+        const normalizedRule = normalizeRRule(value);
+        if (normalizedRule && !recurrenceRules.includes(normalizedRule)) {
+          recurrenceRules.push(normalizedRule);
+        }
+
+        activeLabelNamespace = null;
+
+        break;
+      }
     }
   });
+
+  parsedEvent.repeat = {
+    rrule: recurrenceRules[0] ?? null,
+    rrules: recurrenceRules,
+  };
+
   return parsedEvent;
 };

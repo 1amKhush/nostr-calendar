@@ -143,12 +143,29 @@ describe("nostrEventToCalendar", () => {
     });
     const result = nostrEventToCalendar(event);
     expect(result.repeat.rrule).toBe("FREQ=WEEKLY");
+    expect(result.repeat.rrules).toEqual(["FREQ=WEEKLY"]);
+  });
+
+  it("parses multiple recurring rules from multiple L/l pairs", () => {
+    const event = makeNostrEvent({
+      tags: [
+        ["L", "rrule"],
+        ["l", "FREQ=WEEKLY"],
+        ["L", "rrule"],
+        ["l", "FREQ=MONTHLY"],
+      ],
+    });
+    const result = nostrEventToCalendar(event);
+
+    expect(result.repeat.rrule).toBe("FREQ=WEEKLY");
+    expect(result.repeat.rrules).toEqual(["FREQ=WEEKLY", "FREQ=MONTHLY"]);
   });
 
   it("sets repeat.rrule to null for non-recurring events", () => {
     const event = makeNostrEvent({ tags: [] });
     const result = nostrEventToCalendar(event);
     expect(result.repeat.rrule).toBeNull();
+    expect(result.repeat.rrules).toEqual([]);
   });
 
   it("sets isPrivateEvent from options", () => {
@@ -222,5 +239,6 @@ describe("nostrEventToCalendar", () => {
     expect(result.reference).toEqual(["https://nostr.com"]);
     expect(result.image).toBe("https://img.com/pic.png");
     expect(result.repeat.rrule).toBe("FREQ=DAILY");
+    expect(result.repeat.rrules).toEqual(["FREQ=DAILY"]);
   });
 });
