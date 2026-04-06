@@ -29,6 +29,30 @@ export function normalizeRRule(rule: string): string {
   return rule.replace(/^RRULE:/i, "").trim();
 }
 
+export function formatRRuleUntil(timestampMs: number): string {
+  return new Date(timestampMs)
+    .toISOString()
+    .replace(/[-:]/g, "")
+    .split(".")[0] + "Z";
+}
+
+export function addUntilToRRule(rule: string, untilTimestampMs: number): string {
+  const normalized = normalizeRRule(rule);
+  if (!normalized) {
+    return "";
+  }
+
+  const fragments = normalized
+    .split(";")
+    .map((fragment) => fragment.trim())
+    .filter((fragment) => {
+      return fragment && !fragment.toUpperCase().startsWith("UNTIL=");
+    });
+
+  fragments.push(`UNTIL=${formatRRuleUntil(untilTimestampMs)}`);
+  return fragments.join(";");
+}
+
 export function getEventRRules(
   repeat: ICalendarEvent["repeat"] | undefined,
 ): string[] {

@@ -1,5 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
+  addUntilToRRule,
+  formatRRuleUntil,
   isEventInDateRange,
   getNextOccurrenceInRange,
   frequencyToRRule,
@@ -91,6 +93,30 @@ describe("getEventRRules", () => {
     });
 
     expect(rules).toEqual(["FREQ=WEEKLY", "FREQ=MONTHLY"]);
+  });
+});
+
+describe("formatRRuleUntil", () => {
+  it("formats a UTC timestamp to RFC5545 UNTIL format", () => {
+    const timestamp = Date.UTC(2025, 0, 1, 12, 34, 56);
+    expect(formatRRuleUntil(timestamp)).toBe("20250101T123456Z");
+  });
+});
+
+describe("addUntilToRRule", () => {
+  it("adds UNTIL to a recurrence rule", () => {
+    const timestamp = Date.UTC(2025, 0, 1, 12, 34, 56);
+    const result = addUntilToRRule("FREQ=WEEKLY", timestamp);
+    expect(result).toBe("FREQ=WEEKLY;UNTIL=20250101T123456Z");
+  });
+
+  it("replaces an existing UNTIL with the new timestamp", () => {
+    const timestamp = Date.UTC(2026, 2, 3, 8, 0, 0);
+    const result = addUntilToRRule(
+      "FREQ=MONTHLY;UNTIL=20240101T000000Z;INTERVAL=2",
+      timestamp,
+    );
+    expect(result).toBe("FREQ=MONTHLY;INTERVAL=2;UNTIL=20260303T080000Z");
   });
 });
 

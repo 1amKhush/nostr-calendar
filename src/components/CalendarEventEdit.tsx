@@ -21,6 +21,7 @@ import {
 import CloseIcon from "@mui/icons-material/Close";
 import { ICalendarEvent, RepeatingFrequency } from "../utils/types";
 import {
+  addUntilToRRule,
   frequencyToRRule,
   getEventRRules,
   normalizeRRule,
@@ -225,6 +226,24 @@ export function CalendarEventEdit({
     const selectedRule = normalizeRRule(event.target.value);
     const existingRules = getEventRRules(eventDetails.repeat);
     const editableRules = existingRules.length > 0 ? [...existingRules] : [""];
+
+    const previousRule = editableRules[index] || "";
+    const shouldPromptForHistoryPreservation =
+      mode === "edit" && !!previousRule && !!selectedRule && previousRule !== selectedRule;
+
+    if (shouldPromptForHistoryPreservation) {
+      const preserveHistory = window.confirm(
+        intl.formatMessage({ id: "event.preserveRecurrenceHistoryPrompt" }),
+      );
+
+      if (preserveHistory) {
+        const nextRules = editableRules.filter((_, i) => i !== index).filter(Boolean);
+        nextRules.push(addUntilToRRule(previousRule, Date.now()));
+        nextRules.push(selectedRule);
+        setRecurrenceRules(nextRules);
+        return;
+      }
+    }
 
     editableRules[index] = selectedRule;
     setRecurrenceRules(editableRules.filter(Boolean));
