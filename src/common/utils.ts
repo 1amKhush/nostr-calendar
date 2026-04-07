@@ -164,7 +164,12 @@ export function parseICS(icsContent: string): ICalendarEvent | null {
           .filter(Boolean);
         break;
       case "RRULE":
-        rrules.push(normalizeRRule(value));
+        {
+          const normalizedRule = normalizeRRule(value);
+          if (normalizedRule && !rrules.includes(normalizedRule)) {
+            rrules.push(normalizedRule);
+          }
+        }
         break;
       case "ATTACH":
         if (!image) image = value;

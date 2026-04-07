@@ -161,6 +161,34 @@ describe("nostrEventToCalendar", () => {
     expect(result.repeat.rrules).toEqual(["FREQ=WEEKLY", "FREQ=MONTHLY"]);
   });
 
+  it("does not treat distant unlabeled l tags as rrule labels", () => {
+    const event = makeNostrEvent({
+      tags: [
+        ["L", "rrule"],
+        ["title", "Intervening tag"],
+        ["l", "FREQ=WEEKLY"],
+      ],
+    });
+    const result = nostrEventToCalendar(event);
+
+    expect(result.repeat.rrule).toBeNull();
+    expect(result.repeat.rrules).toEqual([]);
+  });
+
+  it("parses namespaced rrule labels even when not adjacent to L tag", () => {
+    const event = makeNostrEvent({
+      tags: [
+        ["L", "status"],
+        ["title", "Intervening tag"],
+        ["l", "FREQ=MONTHLY", "rrule"],
+      ],
+    });
+    const result = nostrEventToCalendar(event);
+
+    expect(result.repeat.rrule).toBe("FREQ=MONTHLY");
+    expect(result.repeat.rrules).toEqual(["FREQ=MONTHLY"]);
+  });
+
   it("sets repeat.rrule to null for non-recurring events", () => {
     const event = makeNostrEvent({ tags: [] });
     const result = nostrEventToCalendar(event);
