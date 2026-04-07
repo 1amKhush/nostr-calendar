@@ -161,15 +161,32 @@ describe("nostrEventToCalendar", () => {
     expect(result.repeat.rrules).toEqual(["FREQ=WEEKLY", "FREQ=MONTHLY"]);
   });
 
-  it("preserves COUNT and UNTIL in recurring rules", () => {
+  it("does not treat distant unlabeled l tags as rrule labels", () => {
     const event = makeNostrEvent({
       tags: [
         ["L", "rrule"],
-        ["l", "FREQ=DAILY;COUNT=5;UNTIL=20250430T100000Z"],
+        ["title", "Intervening tag"],
+        ["l", "FREQ=WEEKLY"],
       ],
     });
     const result = nostrEventToCalendar(event);
-    expect(result.repeat.rrule).toBe("FREQ=DAILY;COUNT=5;UNTIL=20250430T100000Z");
+
+    expect(result.repeat.rrule).toBeNull();
+    expect(result.repeat.rrules).toEqual([]);
+  });
+
+  it("parses namespaced rrule labels even when not adjacent to L tag", () => {
+    const event = makeNostrEvent({
+      tags: [
+        ["L", "status"],
+        ["title", "Intervening tag"],
+        ["l", "FREQ=MONTHLY", "rrule"],
+      ],
+    });
+    const result = nostrEventToCalendar(event);
+
+    expect(result.repeat.rrule).toBe("FREQ=MONTHLY");
+    expect(result.repeat.rrules).toEqual(["FREQ=MONTHLY"]);
   });
 
   it("sets repeat.rrule to null for non-recurring events", () => {

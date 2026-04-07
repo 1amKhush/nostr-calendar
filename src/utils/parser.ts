@@ -34,9 +34,8 @@ export const nostrEventToCalendar = (
     rsvpResponses: [],
   };
   const recurrenceRules: string[] = [];
-  let activeLabelNamespace: string | null = null;
 
-  event.tags.forEach(([key, value, labelNamespace]) => {
+  event.tags.forEach(([key, value, labelNamespace], index) => {
     switch (key) {
       case "description":
         parsedEvent.description = value;
@@ -72,15 +71,14 @@ export const nostrEventToCalendar = (
       case "g":
         parsedEvent.geoHash.push(value);
         break;
-      case "L":
-        activeLabelNamespace = value;
-        break;
       case "l": {
+        const previousTag = event.tags[index - 1];
+        const followsRRuleLabel =
+          previousTag?.[0] === "L" && previousTag?.[1] === "rrule";
         const isRRuleLabel =
-          labelNamespace === "rrule" || activeLabelNamespace === "rrule";
+          labelNamespace === "rrule" || followsRRuleLabel;
 
         if (!isRRuleLabel || !value) {
-          activeLabelNamespace = null;
           break;
         }
 
@@ -88,8 +86,6 @@ export const nostrEventToCalendar = (
         if (normalizedRule && !recurrenceRules.includes(normalizedRule)) {
           recurrenceRules.push(normalizedRule);
         }
-
-        activeLabelNamespace = null;
 
         break;
       }
