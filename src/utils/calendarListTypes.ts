@@ -1,4 +1,3 @@
-import { EventKinds } from "../common/EventConfigs";
 import type { ICalendarEvent } from "./types";
 
 /**
@@ -99,8 +98,7 @@ export function parseEventRef(ref: string[]): {
   const endTimeSecs = Number.parseInt(metadataParts[3] || "0", 10);
   const hasRecurringFlag = metadataParts[4] === "true";
   const kind = Number.parseInt(coordinateParts[0], 10);
-  const isRecurring =
-    hasRecurringFlag || kind === EventKinds.PrivateCalendarRecurringEvent;
+  const isRecurring = hasRecurringFlag;
 
   return {
     kind,

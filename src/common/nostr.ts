@@ -321,9 +321,6 @@ export async function publishPrivateCalendarEvent(
     authorPubkey: userPublicKey,
     eventDTag: dTag,
     viewKey: nip19.nsecEncode(viewSecretKey),
-    beginTimeSecs: Math.floor(event.begin / 1000),
-    endTimeSecs: Math.floor(event.end / 1000),
-    isRecurring: !!event.repeat?.rrule,
   });
   await useCalendarLists.getState().addEventToCalendar(calendarId, eventRef);
 
@@ -350,9 +347,6 @@ export async function editPrivateCalendarEvent(
     authorPubkey: userPublicKey,
     eventDTag: dTag,
     viewKey: nip19.nsecEncode(viewSecretKey),
-    beginTimeSecs: Math.floor(event.begin / 1000),
-    endTimeSecs: Math.floor(event.end / 1000),
-    isRecurring: !!event.repeat?.rrule,
   });
 
   await useCalendarLists
