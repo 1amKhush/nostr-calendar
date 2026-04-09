@@ -334,6 +334,16 @@ const LoginModal: React.FC<LoginModalProps> = ({ open, onClose }) => {
   const [nsecInput, setNsecInput] = useState("");
   const [loadingNsec, setLoadingNsec] = useState(false);
 
+  useEffect(() => {
+    if (!open) {
+      setShowNip46(false);
+      setShowNsecInput(false);
+      setNsecInput("");
+      setLoadingNip07(false);
+      setLoadingNsec(false);
+    }
+  }, [open]);
+
   const [snackbar, setSnackbar] = useState<{
     open: boolean;
     message: string;
@@ -427,6 +437,7 @@ const LoginModal: React.FC<LoginModalProps> = ({ open, onClose }) => {
                       type="password"
                       value={nsecInput}
                       onChange={(event) => setNsecInput(event.target.value)}
+                      autoComplete="off"
                       placeholder={intl.formatMessage({
                         id: "login.enterNsecPlaceholder",
                       })}
