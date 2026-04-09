@@ -9,6 +9,11 @@ import {
   Box,
   Typography,
   IconButton,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  SelectChangeEvent,
   useMediaQuery,
   useTheme,
 } from "@mui/material";
@@ -17,6 +22,7 @@ import CloseIcon from "@mui/icons-material/Close";
 import CircleIcon from "@mui/icons-material/Circle";
 import type { ICalendarList } from "../utils/calendarListTypes";
 import { useIntl } from "react-intl";
+import type { NotificationPreference } from "../utils/types";
 
 const PRESET_COLORS = [
   "#4285f4", // Blue
@@ -35,7 +41,12 @@ interface CalendarManageDialogProps {
   open: boolean;
   onClose: () => void;
   calendar?: ICalendarList;
-  onSave: (data: { title: string; description: string; color: string }) => void;
+  onSave: (data: {
+    title: string;
+    description: string;
+    color: string;
+    notificationPreference: NotificationPreference;
+  }) => void;
   onDelete?: () => void;
   /** When true, the dialog cannot be dismissed — used for onboarding when no calendars exist. */
   blocking?: boolean;
@@ -55,13 +66,22 @@ export function CalendarManageDialog({
   const [title, setTitle] = useState(calendar?.title || "");
   const [description, setDescription] = useState(calendar?.description || "");
   const [color, setColor] = useState(calendar?.color || PRESET_COLORS[0]);
+  const [notificationPreference, setNotificationPreference] =
+    useState<NotificationPreference>(
+      calendar?.notificationPreference || "default",
+    );
   const intl = useIntl();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
 
   const handleSave = () => {
     if (!title.trim()) return;
-    onSave({ title: title.trim(), description: description.trim(), color });
+    onSave({
+      title: title.trim(),
+      description: description.trim(),
+      color,
+      notificationPreference,
+    });
     onClose();
   };
 
@@ -162,6 +182,37 @@ export function CalendarManageDialog({
               ))}
             </Box>
           </Box>
+
+          <FormControl fullWidth size="small">
+            <InputLabel>
+              {intl.formatMessage({
+                id: "calendarManage.notificationPreference",
+              })}
+            </InputLabel>
+            <Select
+              value={notificationPreference}
+              label={intl.formatMessage({
+                id: "calendarManage.notificationPreference",
+              })}
+              onChange={(event: SelectChangeEvent<NotificationPreference>) => {
+                const value = event.target.value;
+                setNotificationPreference(
+                  value === "none" ? "none" : "default",
+                );
+              }}
+            >
+              <MenuItem value="default">
+                {intl.formatMessage({
+                  id: "calendarManage.notificationDefault",
+                })}
+              </MenuItem>
+              <MenuItem value="none">
+                {intl.formatMessage({
+                  id: "calendarManage.notificationOff",
+                })}
+              </MenuItem>
+            </Select>
+          </FormControl>
         </Box>
       </DialogContent>
 

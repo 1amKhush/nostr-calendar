@@ -68,6 +68,17 @@ export const getTimeRangeConfig = (): TimeRangeConfig => ({
   daysAfter: 28,
 });
 
+const getCalendarNotificationPreference = (calendarId?: string) => {
+  if (!calendarId) {
+    return undefined;
+  }
+
+  return useCalendarLists
+    .getState()
+    .calendars.find((calendar) => calendar.id === calendarId)
+    ?.notificationPreference;
+};
+
 // Helper function to get configurable time range
 const getTimeRange = (customConfig?: {
   daysBefore?: number;
@@ -134,7 +145,10 @@ const processPrivateEvent = (
     }
   }
   console.log(parsedEvent);
-  scheduleEventNotifications(parsedEvent).then((notifications) => {
+  scheduleEventNotifications(
+    parsedEvent,
+    getCalendarNotificationPreference(calendarId),
+  ).then((notifications) => {
     useNotifications.getState().setNotifications(parsedEvent.id, notifications);
   });
   const updatedEvents = denormalize(store);
@@ -190,7 +204,10 @@ export const useTimeBasedEvents = create<{
     // Cancel old notifications and reschedule with updated event data
     cancelEventNotifications(updatedEvent.id).then(() => {
       useNotifications.getState().removeNotifications(updatedEvent.id);
-      scheduleEventNotifications(updatedEvent).then((notifications) => {
+      scheduleEventNotifications(
+        updatedEvent,
+        getCalendarNotificationPreference(updatedEvent.calendarId),
+      ).then((notifications) => {
         useNotifications
           .getState()
           .setNotifications(updatedEvent.id, notifications);

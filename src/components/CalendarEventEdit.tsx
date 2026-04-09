@@ -19,7 +19,11 @@ import {
   useTheme,
 } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
-import { ICalendarEvent, RepeatingFrequency } from "../utils/types";
+import {
+  ICalendarEvent,
+  NotificationPreference,
+  RepeatingFrequency,
+} from "../utils/types";
 import {
   frequencyToRRule,
   rruleToFrequency,
@@ -176,6 +180,14 @@ export function CalendarEventEdit({
     });
   };
 
+  const handleNotificationPreferenceChange = (e: SelectChangeEvent<string>) => {
+    const value = e.target.value;
+    updateField(
+      "notificationPreference",
+      value === "inherit" ? undefined : (value as NotificationPreference),
+    );
+  };
+
   const buttonDisabled = !(
     !processing &&
     eventDetails.title &&
@@ -313,6 +325,30 @@ export function CalendarEventEdit({
             </MenuItem>
             <MenuItem value={RepeatingFrequency.Yearly}>
               {intl.formatMessage({ id: "event.yearly" })}
+            </MenuItem>
+          </Select>
+        </FormControl>
+      </EventAttributeEditContainer>
+      <Divider />
+      <EventAttributeEditContainer>
+        <ScheduleIcon />
+        <FormControl fullWidth size="small">
+          <InputLabel>
+            {intl.formatMessage({ id: "event.notificationPreference" })}
+          </InputLabel>
+          <Select
+            value={eventDetails.notificationPreference || "inherit"}
+            label={intl.formatMessage({ id: "event.notificationPreference" })}
+            onChange={handleNotificationPreferenceChange}
+          >
+            <MenuItem value="inherit">
+              {intl.formatMessage({ id: "event.notificationInherit" })}
+            </MenuItem>
+            <MenuItem value="default">
+              {intl.formatMessage({ id: "event.notificationDefault" })}
+            </MenuItem>
+            <MenuItem value="none">
+              {intl.formatMessage({ id: "event.notificationOff" })}
             </MenuItem>
           </Select>
         </FormControl>

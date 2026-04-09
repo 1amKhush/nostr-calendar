@@ -229,6 +229,9 @@ async function preparePrivateCalendarEvent(
     ["image", event.image ?? ""],
     ["d", dTag],
   ];
+  if (event.notificationPreference) {
+    eventData.push(["notification_preference", event.notificationPreference]);
+  }
   if (event.repeat?.rrule) {
     eventData.push(["L", "rrule"]);
     eventData.push(["l", event.repeat.rrule]);
@@ -642,6 +645,10 @@ export const publishPublicCalendarEvent = async (
   ];
   if (event.image) {
     tags.push(["image", event.image]);
+  }
+
+  if (event.notificationPreference) {
+    tags.push(["notification_preference", event.notificationPreference]);
   }
 
   if (event.location.length > 0) {

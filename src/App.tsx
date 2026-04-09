@@ -109,7 +109,10 @@ function Application() {
     import("@capacitor/app").then(({ App: CapApp }) => {
       const listener = CapApp.addListener("appStateChange", ({ isActive }) => {
         if (isActive) {
-          setSecureItem(BG_KEY_LAST_INVITATION_FETCH_TIME, Math.floor(Date.now() / 1000));
+          setSecureItem(
+            BG_KEY_LAST_INVITATION_FETCH_TIME,
+            Math.floor(Date.now() / 1000),
+          );
         }
       });
       cleanup = () => {
@@ -151,8 +154,14 @@ function Application() {
     title: string;
     description: string;
     color: string;
+    notificationPreference: "default" | "none";
   }) => {
-    await createCalendar(data.title, data.description, data.color);
+    await createCalendar(
+      data.title,
+      data.description,
+      data.color,
+      data.notificationPreference,
+    );
     setShowOnboardingDialog(false);
   };
 

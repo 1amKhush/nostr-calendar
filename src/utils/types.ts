@@ -33,6 +33,8 @@ export interface IScheduledNotification {
   scheduledAt: number;
 }
 
+export type NotificationPreference = "default" | "none";
+
 export interface ICalendarEvent {
   begin: number;
   description: string;
@@ -56,6 +58,7 @@ export interface ICalendarEvent {
   repeat: {
     rrule: string | null;
   };
+  notificationPreference?: NotificationPreference;
   calendarId?: string;
   isInvitation?: boolean;
 }

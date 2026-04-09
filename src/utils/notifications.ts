@@ -1,6 +1,10 @@
 import { LocalNotifications } from "@capacitor/local-notifications";
 import { isNative } from "./platform";
-import type { ICalendarEvent, IScheduledNotification } from "./types";
+import type {
+  ICalendarEvent,
+  IScheduledNotification,
+  NotificationPreference,
+} from "./types";
 import { getNextOccurrenceInRange } from "./repeatingEventsHelper";
 
 const scheduledNotificationKeys = new Set<string>();
@@ -56,8 +60,15 @@ function buildNotificationKey(
 
 export async function scheduleEventNotifications(
   event: ICalendarEvent,
+  listNotificationPreference?: NotificationPreference,
 ): Promise<IScheduledNotification[]> {
   if (!isNative) return [];
+
+  const effectivePreference =
+    event.notificationPreference || listNotificationPreference || "default";
+  if (effectivePreference === "none") {
+    return [];
+  }
 
   await initScheduledIds();
 

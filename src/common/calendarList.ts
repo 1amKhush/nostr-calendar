@@ -51,6 +51,10 @@ export async function encryptCalendarList(
     ["title", calendarList.title],
     ["content", calendarList.description],
     ["color", calendarList.color],
+    [
+      "notification_preference",
+      calendarList.notificationPreference || "default",
+    ],
   ];
 
   // Add event references as "a" tags: ["a", coordinate, metadata]
@@ -91,6 +95,7 @@ export async function decryptCalendarList(
   let title = DEFAULT_CALENDAR_TITLE;
   let description = "";
   let color = DEFAULT_CALENDAR_COLOR;
+  let notificationPreference: "default" | "none" = "default";
   const eventRefs: string[][] = [];
 
   for (const tag of tags) {
@@ -103,6 +108,9 @@ export async function decryptCalendarList(
         break;
       case "color":
         color = tag[1] || DEFAULT_CALENDAR_COLOR;
+        break;
+      case "notification_preference":
+        notificationPreference = tag[1] === "none" ? "none" : "default";
         break;
       case "a":
         // a-tag format: ["a", "{kind}:{authorPubkey}:{eventDTag}", "{relayUrl}", "{viewKey}:{beginTimeSecs}::{endTimeSecs}:{isRecurring}"]
@@ -120,6 +128,7 @@ export async function decryptCalendarList(
     title,
     description,
     color,
+    notificationPreference,
     eventRefs,
     createdAt: event.created_at,
     isVisible: true, // Default to visible; client-side state
@@ -220,6 +229,7 @@ export async function createDefaultCalendar(): Promise<ICalendarList> {
     title: DEFAULT_CALENDAR_TITLE,
     description: "",
     color: DEFAULT_CALENDAR_COLOR,
+    notificationPreference: "default" as const,
     eventId: "",
     eventRefs: [],
     isVisible: true,

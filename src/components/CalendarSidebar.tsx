@@ -28,6 +28,7 @@ import { useCalendarLists } from "../stores/calendarLists";
 import { CalendarManageDialog } from "./CalendarManageDialog";
 import type { ICalendarList } from "../utils/calendarListTypes";
 import { useIntl } from "react-intl";
+import { useTimeBasedEvents } from "../stores/events";
 
 interface CalendarSidebarProps {
   onClose: () => void;
@@ -64,11 +65,26 @@ export function CalendarSidebar({ onClose }: CalendarSidebarProps) {
     title: string;
     description: string;
     color: string;
+    notificationPreference: "default" | "none";
   }) => {
     if (editingCalendar) {
       await updateCalendar({ ...editingCalendar, ...data });
+
+      // Re-apply scheduling for events already in this calendar
+      // so the new list preference is reflected immediately.
+      const eventStore = useTimeBasedEvents.getState();
+      eventStore.events
+        .filter((evt) => evt.calendarId === editingCalendar.id)
+        .forEach((evt) => {
+          eventStore.updateEvent(evt);
+        });
     } else {
-      await createCalendar(data.title, data.description, data.color);
+      await createCalendar(
+        data.title,
+        data.description,
+        data.color,
+        data.notificationPreference,
+      );
     }
   };
 
@@ -160,7 +176,6 @@ export function CalendarSidebar({ onClose }: CalendarSidebarProps) {
           </Box>
         )}
       </Box>
-
 
       {manageDialogOpen && (
         <CalendarManageDialog

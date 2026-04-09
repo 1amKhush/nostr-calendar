@@ -1,5 +1,4 @@
-import { EventKinds } from "../common/EventConfigs";
-import type { ICalendarEvent } from "./types";
+import type { ICalendarEvent, NotificationPreference } from "./types";
 
 /**
  * Represents a private calendar list (kind 32123).
@@ -20,6 +19,8 @@ export interface ICalendarList {
   description: string;
   /** Hex color string for theming event cards, e.g. "#4285f4" */
   color: string;
+  /** Default notification behavior for events in this calendar. */
+  notificationPreference?: NotificationPreference;
   /**
    * References to calendar events as standard NIP a-tag arrays:
    * ["{kind}:{authorPubkey}:{eventDTag}", "{relayUrl}", "{viewKey}:{beginTimeSecs}::{endTimeSecs}:{isRecurring}"]

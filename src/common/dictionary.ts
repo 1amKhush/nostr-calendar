@@ -93,6 +93,10 @@ const dictionary: NestedObject = {
       notInCalendar:
         "This event is not in any of your calendars. You will not receive notifications for this event. Add it to your calendar to receive notifications.",
       scheduledNotifications: "Scheduled Notifications",
+      notificationPreference: "Notifications",
+      notificationInherit: "Use calendar setting",
+      notificationDefault: "10 min before and at start",
+      notificationOff: "Do not notify",
     },
     deleteEvent: {
       title: "Delete Event",
@@ -118,6 +122,9 @@ const dictionary: NestedObject = {
       onboardingExplanation:
         "Create a calendar to get started. Events are organized into calendars — you need at least one to add and manage your events.",
       refetchCalendars: "Refetch Calendars",
+      notificationPreference: "Default notifications",
+      notificationDefault: "10 min before and at start",
+      notificationOff: "Do not notify",
     },
     sidebar: {
       calendars: "Calendars",
@@ -271,6 +278,10 @@ const dictionary: NestedObject = {
       notInCalendar:
         "Dieser Termin ist in keinem Ihrer Kalender. Sie erhalten keine Benachrichtigungen für diesen Termin. Fügen Sie ihn zu Ihrem Kalender hinzu, um Benachrichtigungen zu erhalten.",
       scheduledNotifications: "Geplante Benachrichtigungen",
+      notificationPreference: "Benachrichtigungen",
+      notificationInherit: "Kalendereinstellung verwenden",
+      notificationDefault: "10 Min. vorher und zum Start",
+      notificationOff: "Nicht benachrichtigen",
     },
     deleteEvent: {
       title: "Termin löschen",
@@ -296,6 +307,9 @@ const dictionary: NestedObject = {
       onboardingExplanation:
         "Erstellen Sie einen Kalender, um loszulegen. Termine werden in Kalendern organisiert — Sie benötigen mindestens einen, um Termine hinzuzufügen und zu verwalten.",
       refetchCalendars: "Kalender neu laden",
+      notificationPreference: "Standard-Benachrichtigungen",
+      notificationDefault: "10 Min. vorher und zum Start",
+      notificationOff: "Nicht benachrichtigen",
     },
     sidebar: {
       calendars: "Kalender",

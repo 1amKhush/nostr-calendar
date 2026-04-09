@@ -67,6 +67,11 @@ export const nostrEventToCalendar = (
       case "g":
         parsedEvent.geoHash.push(value);
         break;
+      case "notification_preference":
+        if (value === "none" || value === "default") {
+          parsedEvent.notificationPreference = value;
+        }
+        break;
       case "L":
         switch (value) {
           case "rrule":

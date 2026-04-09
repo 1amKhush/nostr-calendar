@@ -31,6 +31,7 @@ import {
 import { getUserPublicKey, publishDeletionEvent } from "../common/nostr";
 import { EventKinds } from "../common/EventConfigs";
 import type { ICalendarList } from "../utils/calendarListTypes";
+import type { NotificationPreference } from "../utils/types";
 import type { SubscriptionHandle } from "../common/nostrRuntime";
 import { isNative } from "../utils/platform";
 
@@ -64,6 +65,7 @@ interface CalendarListsState {
     title: string,
     description?: string,
     color?: string,
+    notificationPreference?: NotificationPreference,
   ) => Promise<ICalendarList>;
   updateCalendar: (calendar: ICalendarList) => Promise<void>;
   deleteCalendar: (calendarId: string) => Promise<void>;
@@ -193,11 +195,17 @@ export const useCalendarLists = create<CalendarListsState>((set, get) => ({
   /**
    * Creates a new calendar with the given properties and publishes it.
    */
-  createCalendar: async (title, description = "", color = "#4285f4") => {
+  createCalendar: async (
+    title,
+    description = "",
+    color = "#4285f4",
+    notificationPreference = "default",
+  ) => {
     const newCalendar = await createCalendar({
       title,
       description,
       color,
+      notificationPreference,
       eventId: "",
       eventRefs: [],
       isVisible: true,
