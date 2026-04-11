@@ -26,7 +26,6 @@ import {
   publishPublicCalendarEvent,
 } from "../common/nostr";
 import { DateTimePicker } from "@mui/x-date-pickers/DateTimePicker";
-import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import dayjs, { Dayjs } from "dayjs";
 import LocationPinIcon from "@mui/icons-material/LocationPin";
 import EventRepeatIcon from "@mui/icons-material/EventRepeat";
@@ -63,7 +62,6 @@ export function CalendarEventEdit({
   display = "modal",
 }: CalendarEventEditProps) {
   const intl = useIntl();
-  const initialRecurrence = parseRecurrenceRule(initialEvent?.repeat.rrule);
   const [processing, setProcessing] = useState(false);
   const [isPrivate, setIsPrivate] = useState(
     initialEvent?.isPrivateEvent ?? true,
@@ -110,18 +108,6 @@ export function CalendarEventEdit({
       },
     } as ICalendarEvent;
   });
-  const [recurrenceFrequency, setRecurrenceFrequency] =
-    useState<RepeatingFrequency>(
-      initialRecurrence.frequency ?? RepeatingFrequency.None,
-    );
-  const [recurrenceEndMode, setRecurrenceEndMode] =
-    useState<RecurrenceEndMode>(initialRecurrence.endMode);
-  const [recurrenceCount, setRecurrenceCount] = useState<number>(
-    initialRecurrence.count ?? 1,
-  );
-  const [recurrenceUntilDate, setRecurrenceUntilDate] = useState<Dayjs | null>(
-    initialRecurrence.untilDate ? dayjs(initialRecurrence.untilDate) : null,
-  );
 
   const handleClose = () => {
     onClose();
@@ -141,18 +127,7 @@ export function CalendarEventEdit({
   const handleSave = async () => {
     setProcessing(true);
     try {
-      const rrule = buildRecurrenceRule({
-        frequency: recurrenceFrequency,
-        endMode: recurrenceEndMode,
-        count: recurrenceCount,
-        untilDate: recurrenceUntilDate?.valueOf() ?? null,
-        eventStart: eventDetails.begin,
-      });
-      const eventToSave = {
-        ...eventDetails,
-        isPrivateEvent: isPrivate,
-        repeat: { rrule },
-      };
+      const eventToSave = { ...eventDetails, isPrivateEvent: isPrivate };
 
       if (isPrivate) {
         if (mode === "edit") {
@@ -186,15 +161,6 @@ export function CalendarEventEdit({
   const onChangeBeginDate = (value: Dayjs | null) => {
     if (!value) return;
     updateField("begin", value.unix() * 1000);
-
-    const beginDay = value.startOf("day");
-    if (
-      recurrenceEndMode === "until" &&
-      recurrenceUntilDate &&
-      recurrenceUntilDate.isBefore(beginDay, "day")
-    ) {
-      setRecurrenceUntilDate(beginDay);
-    }
   };
 
   const onChangeEndDate = (value: Dayjs | null) => {
@@ -215,8 +181,7 @@ export function CalendarEventEdit({
     eventDetails.title &&
     eventDetails.begin &&
     eventDetails.end &&
-    eventDetails.begin < eventDetails.end &&
-    recurrenceValid
+    eventDetails.begin < eventDetails.end
   );
 
   if (!open || !eventDetails) {
