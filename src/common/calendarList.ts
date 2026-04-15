@@ -24,7 +24,7 @@
 
 import { Event, UnsignedEvent, getEventHash, Filter } from "nostr-tools";
 import { sha256 } from "@noble/hashes/sha2.js";
-import { bytesToHex, utf8ToBytes } from "@noble/hashes/utils";
+import { bytesToHex, utf8ToBytes } from "@noble/hashes/utils.js";
 
 import { signerManager } from "./signer";
 import { EventKinds } from "./EventConfigs";
@@ -194,7 +194,7 @@ export function fetchCalendarLists(
 export async function createCalendar(
   calendarData: Omit<ICalendarList, "id" | "createdAt">,
 ): Promise<ICalendarList> {
-  const idRoot = `${JSON.stringify(calendarData)}-${Date.now}`;
+  const idRoot = `${JSON.stringify(calendarData)}-${Date.now()}`;
   const id = bytesToHex(sha256(utf8ToBytes(idRoot))).substring(0, 30);
   const calendar: ICalendarList = {
     ...calendarData,

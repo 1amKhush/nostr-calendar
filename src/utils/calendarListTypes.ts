@@ -1,4 +1,3 @@
-import { EventKinds } from "../common/EventConfigs";
 import type { ICalendarEvent } from "./types";
 
 /**
@@ -63,6 +62,8 @@ export interface IInvitation {
   eventId: string;
   /** nsec-encoded view key for decrypting the event */
   viewKey: string;
+  /** Relay hint indicating where the main event is published */
+  relayHint?: string;
   /** Resolved event data (populated after fetching and decrypting) */
   event?: ICalendarEvent;
   /** Timestamp when the invitation was received */
@@ -117,4 +118,16 @@ export function buildEventRef(params: {
     params.relayUrl || "",
     `${params.viewKey}`,
   ];
+}
+
+/**
+ * Builds the canonical coordinate used in calendar refs and Nostr "a" tags.
+ * Format: "{kind}:{authorPubkey}:{eventDTag}"
+ */
+export function getCalendarEventCoordinate(event: {
+  kind: number;
+  user: string;
+  id: string;
+}): string {
+  return `${event.kind}:${event.user}:${event.id}`;
 }

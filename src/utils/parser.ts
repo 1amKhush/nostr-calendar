@@ -7,7 +7,8 @@ export const nostrEventToCalendar = (
   {
     viewKey,
     isPrivateEvent,
-  }: { viewKey?: string; isPrivateEvent?: boolean } = {},
+    relayHint,
+  }: { viewKey?: string; isPrivateEvent?: boolean; relayHint?: string } = {},
 ): ICalendarEvent => {
   const parsedEvent: ICalendarEvent = {
     description: event.content,
@@ -27,6 +28,7 @@ export const nostrEventToCalendar = (
     participants: [],
     viewKey: viewKey,
     isPrivateEvent: !!isPrivateEvent,
+    relayHint: relayHint,
     repeat: {
       rrules: [],
     },
