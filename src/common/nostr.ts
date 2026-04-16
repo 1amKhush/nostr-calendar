@@ -129,6 +129,9 @@ async function preparePrivateCalendarEvent(
     eventData.push(["L", "rrule"]);
     eventData.push(["l", event.repeat.rrule]);
   }
+  if (event.notificationPreference) {
+    eventData.push(["notification", event.notificationPreference]);
+  }
 
   event.location.forEach((loc) => {
     eventData.push(["location", loc]);

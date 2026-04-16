@@ -45,11 +45,51 @@ import { useCalendarLists } from "./calendarLists";
 import { parseEventRef } from "../utils/calendarListTypes";
 import type { SubscriptionHandle } from "../common/nostrRuntime";
 import { getDTag } from "../common/nostrRuntime/utils/helpers";
+import { shouldScheduleNotifications } from "../utils/notificationPreferences";
 
 export const EVENTS_STORAGE_KEY = "cal:events";
 
 const saveEventsToStorage = (events: ICalendarEvent[]) => {
   setSecureItem(EVENTS_STORAGE_KEY, events);
+};
+
+const getCalendarNotificationPreference = (
+  calendarId?: string,
+): "enabled" | "disabled" | undefined => {
+  if (!calendarId) return undefined;
+  const calendar = useCalendarLists
+    .getState()
+    .calendars.find((c) => c.id === calendarId);
+  return calendar?.notificationPreference;
+};
+
+const syncEventNotifications = async (
+  event: ICalendarEvent,
+  { cancelExisting = false }: { cancelExisting?: boolean } = {},
+): Promise<void> => {
+  const calendarPreference = getCalendarNotificationPreference(event.calendarId);
+  const shouldSchedule = shouldScheduleNotifications(
+    event.notificationPreference,
+    calendarPreference,
+  );
+
+  try {
+    if (!shouldSchedule) {
+      await cancelEventNotifications(event.id);
+      useNotifications.getState().removeNotifications(event.id);
+      return;
+    }
+
+    if (cancelExisting) {
+      await cancelEventNotifications(event.id);
+      useNotifications.getState().removeNotifications(event.id);
+    }
+
+    const notifications = await scheduleEventNotifications(event);
+    useNotifications.getState().setNotifications(event.id, notifications);
+  } catch (error) {
+    console.warn("Failed to sync event notifications", error);
+  }
 };
 
 let publicSubscription: SubscriptionHandle | undefined;
@@ -136,9 +176,7 @@ const processPrivateEvent = (
     }
   }
   console.log(parsedEvent);
-  scheduleEventNotifications(parsedEvent).then((notifications) => {
-    useNotifications.getState().setNotifications(parsedEvent.id, notifications);
-  });
+  void syncEventNotifications(parsedEvent);
   const updatedEvents = denormalize(store);
   saveEventsToStorage(updatedEvents);
   useTimeBasedEvents.setState({
@@ -174,6 +212,7 @@ export const useTimeBasedEvents = create<{
     daysBefore?: number;
     daysAfter?: number;
   }) => void;
+  refreshNotificationPreferencesForCalendar: (calendarId: string) => void;
 }>((set) => ({
   updateEvent: (updatedEvent) => {
     set(({ events }) => {
@@ -189,15 +228,7 @@ export const useTimeBasedEvents = create<{
         events: updatedEvents,
       };
     });
-    // Cancel old notifications and reschedule with updated event data
-    cancelEventNotifications(updatedEvent.id).then(() => {
-      useNotifications.getState().removeNotifications(updatedEvent.id);
-      scheduleEventNotifications(updatedEvent).then((notifications) => {
-        useNotifications
-          .getState()
-          .setNotifications(updatedEvent.id, notifications);
-      });
-    });
+    void syncEventNotifications(updatedEvent, { cancelExisting: true });
   },
   removeEvent: (id) => {
     set(({ events }) => {
@@ -249,6 +280,22 @@ export const useTimeBasedEvents = create<{
   getTimeRangeConfig,
   updateTimeRangeConfig: (newConfig) => {
     Object.assign(getTimeRangeConfig(), newConfig);
+  },
+  refreshNotificationPreferencesForCalendar: (calendarId) => {
+    const { events } = useTimeBasedEvents.getState();
+    const relevantEvents = events.filter((event) => event.calendarId === calendarId);
+
+    void (async () => {
+      const batchSize = 5;
+      for (let i = 0; i < relevantEvents.length; i += batchSize) {
+        const batch = relevantEvents.slice(i, i + batchSize);
+        await Promise.allSettled(
+          batch.map((event) =>
+            syncEventNotifications(event, { cancelExisting: true }),
+          ),
+        );
+      }
+    })();
   },
 
   /**
@@ -394,7 +441,7 @@ export const useTimeBasedEvents = create<{
           } else {
             store = appendOne(store, parsedEvent.id, parsedEvent);
           }
-          scheduleEventNotifications(parsedEvent);
+          void syncEventNotifications(parsedEvent);
           const updatedEvents = denormalize(store);
           saveEventsToStorage(updatedEvents);
           return {
