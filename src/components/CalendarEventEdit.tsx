@@ -320,11 +320,7 @@ export function CalendarEventEdit({
   const handleRecurrenceUntilDateChange = (value: Dayjs | null) => {
     const normalizedValue = value ? value.startOf("day") : null;
     setRecurrenceUntilDate(normalizedValue);
-    applyRecurrenceEndMode(
-      recurrenceEndMode,
-      recurrenceCount,
-      normalizedValue,
-    );
+    applyRecurrenceEndMode(recurrenceEndMode, recurrenceCount, normalizedValue);
   };
 
   const buttonDisabled = !(
@@ -452,15 +448,15 @@ export function CalendarEventEdit({
             <Box
               sx={{
                 display: "flex",
-                gap: 2,
-                flexDirection: { xs: "column", sm: "row" },
+                gap: 1.5,
+                alignItems: "center",
+                flexWrap: "wrap",
               }}
             >
               <FormControl
                 size="small"
                 sx={{
-                  minWidth: { sm: 180 },
-                  flex: { xs: "1 1 auto", sm: "0 0 180px" },
+                  minWidth: { xs: "100%", sm: 144 },
                 }}
               >
                 <InputLabel>
@@ -493,18 +489,22 @@ export function CalendarEventEdit({
                   })}
                   value={recurrenceCount}
                   onChange={handleRecurrenceCountChange}
-                  sx={{ flex: 1 }}
+                  sx={{ width: { xs: "100%", sm: 132 } }}
                 />
               )}
 
               {recurrenceEndMode === "until" && (
                 <DatePicker
-                  sx={{ flex: 1 }}
                   label={intl.formatMessage({ id: "event.recurrenceEndDate" })}
                   value={recurrenceUntilDate}
                   minDate={dayjs(eventDetails.begin).startOf("day")}
                   onChange={handleRecurrenceUntilDateChange}
-                  slotProps={{ textField: { size: "small", fullWidth: true } }}
+                  slotProps={{
+                    textField: {
+                      size: "small",
+                      sx: { width: { xs: "100%", sm: 172 } },
+                    },
+                  }}
                 />
               )}
             </Box>
